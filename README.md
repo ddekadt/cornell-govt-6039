@@ -13,6 +13,6 @@ readings.md         citations to readings, with links
 setup.md            install R, Positron, Git and the compiler before week one
 ```
 
-Files are named by session number and topic: `00-course-overview.pdf`, `01-foundations.pdf`, `02-linear-regression.pdf`. Problem sets live in `problem-sets/ps1/` and so on, as `ps1.qmd` and `ps1.pdf`.
+Files are named by session number and topic e.g. `00-course-overview.pdf`, `01-foundations.pdf`, `02-linear-regression.pdf`. Problem sets are stored in `problem-sets/ps1/` and so on, as `ps1.qmd` and `ps1.pdf`, with any accompanying data files.
 
 Everything assigned in this course is free to read online. The syllabus links each text and article at the point it is assigned.
