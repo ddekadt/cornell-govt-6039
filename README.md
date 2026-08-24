@@ -7,7 +7,7 @@ This is a graduate-level methods course in the Cornell Department of Government.
 ```
 syllabus.pdf        the syllabus
 lectures/           lecture slides, as PDF
-problem-sets/       one folder per set, ps1 to ps5, Quarto source and PDF
+problem-sets/       one folder per pset, ps1 to ps5, Quarto source and PDF
 sections/           materials for the Wednesday discussion section
 readings.md         citations to readings, with links
 setup.md            install R, Positron, Git and the compiler before week one
