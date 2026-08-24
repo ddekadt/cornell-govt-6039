@@ -1,1 +1,3 @@
-# cornell-govt-6039
+# GOVT 6039: Statistical and Computational Models
+
+This is a graduate-level methods course in the Cornell Department of Government. It covers statistical and computational models beyond linear regression, taken from the perspective of statistical learning. We begin by recasting linear regression in that framework, then develop non-parametric and penalized regression. From there we work through likelihood and generalized linear models, along with Bayesian computation, and then the canonical supervised and unsupervised machine learning methods. The final third covers non-standard data — text, images, audio, and spatial.
