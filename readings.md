@@ -20,7 +20,7 @@ Note that a few links point at **accepted manuscripts** rather than the publishe
 
 ---
 
-## Articles, by session
+## Articles, by lecture
 
 ### Unit 1 · Regression as statistical learning
 
@@ -80,7 +80,7 @@ Not required, but you can consult these if you would like:
 
 - Breiman, L. 2001. "Statistical Modeling: The Two Cultures." *Statistical Science* 16(3): 199–231. doi:[10.1214/ss/1009213726](https://doi.org/10.1214/ss/1009213726) — the origin of the statistics-versus-algorithms division, and worth arguing with rather than accepting.
 
-**On the session 1 example**
+**On the lecture 1 example**
 
 - Fryer, R. G. 2019. "An Empirical Analysis of Racial Differences in Police Use of Force." *Journal of Political Economy* 127(3): 1210–1261. Response at *JPE* 128(10).
 - Knox, D., W. Lowe & J. Mummolo. 2020. "Administrative Records Mask Racially Biased Policing." *American Political Science Review* 114(3): 619–637.

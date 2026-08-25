@@ -11,7 +11,7 @@ You should check the following before you start:
 - **Mac**: open Terminal and run `uname -m`, and then `sw_vers`.
 - **Windows**: open PowerShell and run `echo $env:PROCESSOR_ARCHITECTURE`.
 
-Please note that **an Intel Mac** (`x86_64`) or **a Windows ARM laptop** (`ARM64`) cannot run PyTorch, which we need from the deep learning session onward. Everything else in the course should be fine. If you have issues with PyTorch, please reach out sooner rather than later and we will make a plan.
+Please note that **an Intel Mac** (`x86_64`) or **a Windows ARM laptop** (`ARM64`) cannot run PyTorch, which we need from the deep learning lecture onward. Everything else in the course should be fine. If you have issues with PyTorch, please reach out sooner rather than later and we will make a plan.
 
 **Apple Silicon Macs below macOS 14** cannot run the current version of R, so you will need to update your macOS. Intel Macs are fine from macOS 11 up.
 
@@ -93,7 +93,7 @@ Do not install `cmdstanr`. Every brms tutorial recommends it. It is not on CRAN,
 
 ### 7. Python — not yet
 
-We do not touch Python until the deep learning session. Positron can install it for you when we get there, so leave it. I will circulate instructions in October.
+We do not touch Python until the deep learning lecture. Positron can install it for you when we get there, so leave it. I will circulate instructions in October.
 
 ---
 
