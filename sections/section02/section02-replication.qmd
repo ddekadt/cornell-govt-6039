@@ -184,7 +184,35 @@ Each study below is introduced with its full citation, the question it asks, and
 components above, so that by the time an estimator appears you already know what it is supposed to
 be estimating.
 
+## Why these three studies
+
+Simulated data would make the point faster and would make it worse. The claim is not that a badly
+chosen setting *could* distort a result. It is that these choices are already being made, silently
+and by convention, in work that has been through peer review, and that is only demonstrable on
+published studies.
+
+The three are here because they fail in different directions.
+
+- @sec-vernby is the case where leaving the setting at its default produces a finding. The published
+  model reports an effect that changes sign across the moderator, and the sign turns out to come
+  from the functional form rather than from any municipality in the data.
+- @sec-hma is the case where choosing the setting honestly **confirms** the published result. That
+  matters more than it sounds. A treatment built only on the first case teaches that checking
+  flexibility overturns findings, which is both wrong and corrosive. The pair teaches that it can go
+  either way, that "stay simple" is a legitimate answer, and that the answer is only available to
+  someone who checked.
+- @sec-folds moves from a setting you can see to one that nobody names. Everyone knows $k$ is a
+  choice. Almost nobody writes down that the fold structure is one, and here it changes not only the
+  error you report but the model you end up selecting.
+
+The first two share a structure, which is why they come as a pair: same kind of target, same
+published model, opposite verdicts. The third changes the question from how flexible the estimator
+should be to what "out of sample" was taken to mean, and that is where the damage is largest.
+
 # A knob that invents a finding: noncitizen suffrage and school spending in Sweden {#sec-vernby}
+
+The failure case: the setting is left at its default, and the model reports something the data do
+not contain.
 
 ## Step 1: what Vernby studies, and what the study is aiming at
 
@@ -197,7 +225,7 @@ looks at education spending, the largest municipal budget item that immigrant ho
 heavily, and asks whether municipalities where the newly enfranchised were a larger share of the
 electorate moved their budgets further.
 
-**The study, in the terms of Slough and Tyson (2023).**
+**The study.**
 
 | component | in this study |
 |:--|:--|
@@ -425,6 +453,8 @@ The restrictive setting did not simply cost precision. It produced a sign.
 
 # A knob that confirms the published finding: threat and partisan identity {#sec-hma}
 
+The other outcome: the same check, run the same way, leaves the published finding standing.
+
 ## Step 1: what Huddy, Mason and Aarøe study, and what the study is aiming at
 
 > Huddy, Leonie, Lilliana Mason, and Lene Aarøe. 2015. "Expressive Partisanship: Campaign
@@ -436,7 +466,7 @@ two accounts predict different emotional responses. If the party is part of who 
 that threatens its standing should make you angry, and it should do so more strongly the more
 central the party is to your sense of self.
 
-**The study, in the terms of Slough and Tyson (2023).**
+**The study.**
 
 | component | in this study |
 |:--|:--|
@@ -686,6 +716,8 @@ inform it. They disagree about how, which leaves the question open.
 
 # The folds are a hyperparameter too, and drawing them badly selects the wrong model {#sec-folds}
 
+The setting nobody writes down, and the one that does the most damage when it is wrong.
+
 ## Step 1: what this exercise asks, and how it differs from the two studies above
 
 > Coppedge, Michael, et al. 2025. *V-Dem Country–Year Dataset v15*. Varieties of Democracy
@@ -695,8 +727,8 @@ inform it. They disagree about how, which leaves the question open.
 conditions? This is the oldest question in comparative political economy, posed here as a
 prediction problem rather than a causal one.
 
-**The exercise, in the terms of Slough and Tyson (2023).** The fit with their framework is
-deliberately partial, and the gaps are informative.
+**The exercise.** The decomposition fits only partly here, and the gaps are what make it worth
+writing out.
 
 | component | in this exercise |
 |:--|:--|
@@ -707,7 +739,7 @@ deliberately partial, and the gaps are informative.
 | target | not $\tau$ but $E[Y \mid X]$: a conditional expectation, not a treatment effect. |
 
 The missing contrast is the point. Without one there is no treatment effect to transport, so
-external validity in Slough and Tyson's sense does not apply directly. What does carry over is the
+external validity in the sense defined above does not apply here. What does carry over is the
 question their definition is built on: does what we learned in the settings we observed hold in
 settings we did not?
 
