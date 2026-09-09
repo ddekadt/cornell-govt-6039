@@ -1,0 +1,1168 @@
+---
+title: "Hyperparameter tuning: an application to real political science research"
+subtitle: "Three published studies, and what changes when the data are allowed to choose the settings"
+author: "GOVT 6039 · Discussion Section 2 · Georgy Tarasenko"
+date: "9 September 2026"
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    number-sections: true
+    code-tools: true
+    code-copy: true
+    code-overflow: wrap
+    highlight-style: github
+    fig-width: 8
+    fig-height: 4
+    fig-format: svg
+    theme: cosmo
+    css: replication.css
+execute:
+  echo: true
+  warning: false
+  message: false
+  cache: true
+---
+
+## How to get the files and reproduce everything {.unnumbered}
+
+Every number, table and figure below is computed when this page is rendered. Nothing is pasted
+in, so if you change the code you change the document. There are three ways to get to a state
+where you can do that.
+
+### If you use Git {.unnumbered}
+
+The section materials live in the course repository under `sections/section02/`.
+
+```bash
+git clone https://github.com/ddekadt/cornell-govt-6039.git
+cd cornell-govt-6039/sections/section02
+quarto render section02-replication.qmd
+```
+
+If you would rather not download the whole course repository, check out that one folder:
+
+```bash
+git clone --filter=blob:none --sparse https://github.com/ddekadt/cornell-govt-6039.git
+cd cornell-govt-6039
+git sparse-checkout set sections/section02
+cd sections/section02
+```
+
+### If you would rather not use Git {.unnumbered}
+
+Two files are enough. Put them in an empty folder and render:
+
+```bash
+curl -O https://raw.githubusercontent.com/ddekadt/cornell-govt-6039/main/sections/section02/section02-replication.qmd
+curl -O https://raw.githubusercontent.com/ddekadt/cornell-govt-6039/main/sections/section02/replication.css
+quarto render section02-replication.qmd
+```
+
+You can also click the **`</> Code`** button at the top right of this page and choose *View
+Source*, then save what you see as `section02-replication.qmd`. The document downloads its own
+data, so no data files are needed to start.
+
+### If you are installing from scratch {.unnumbered}
+
+You need R, Quarto, and two R packages.
+
+1. **R** from [cloud.r-project.org](https://cloud.r-project.org/). Any version from 4.1 onward
+   will do.
+2. **Quarto** is bundled with Positron, so if you followed the course setup you already have it.
+   Otherwise install it from [quarto.org](https://quarto.org/docs/get-started/), or run
+   `quarto::quarto_version()` in R to check.
+3. **Packages**, from the R console:
+
+```r
+install.packages(c("ggplot2", "maps"))
+```
+
+`ggplot2` draws every figure. `maps` is used only for the world map in @sec-folds, and that chunk
+skips itself with a message if the package is absent. Everything else is base R, including both
+estimators.
+
+### The data {.unnumbered}
+
+Two public files are downloaded the first time you render and then cached in the working folder,
+so the second render works offline. If you prefer to fetch them by hand:
+
+| file | source | size |
+|:--|:--|--:|
+| `interflex.RData` | [`xuyiqing/interflex`](https://github.com/xuyiqing/interflex/blob/master/data/interflex.RData) | 0.2 MB |
+| `vdem.RData` | [`vdeminstitute/vdemdata`](https://github.com/vdeminstitute/vdemdata/blob/master/data/vdem.RData) | 34 MB |
+
+A cold render takes about three minutes, nearly all of it in the cross-validation in @sec-folds.
+Chunk caching is on, so later renders finish in seconds; delete the `*_cache/` folder if you want
+a clean run.
+
+::: {.callout-note}
+## The estimators are written out rather than called from a package
+`k`-NN appears below as nine lines of base R. That is deliberate. The argument of this section is
+that you choose `k` and you choose the folds, and both choices are easier to see when the loop is
+in front of you than when it is an argument to someone else's function. It is also the estimator
+from Lecture 3, written the way Lecture 4 wrote it.
+:::
+
+```{r}
+#| label: setup
+#| echo: false
+#| cache: false
+set.seed(6039)
+library(ggplot2)
+ink <- "#1f2937"; acc <- "#b45309"; gry <- "#9aa1ab"; blu <- "#31708e"
+theme_set(theme_minimal(base_size = 13) +
+  theme(panel.grid.minor = element_blank(),
+        strip.text = element_text(face = "bold", size = 11),
+        legend.key.height = unit(12, "pt")))
+fmt <- function(x, d = 2) formatC(x, format = "f", digits = d)
+```
+
+# What a hyperparameter is, and why the data cannot pick it for you
+
+Lecture 3 introduced $k$ in $k$-NN and called it a tuning parameter: it governs how much to
+smooth the fitted function. Lecture 4 gave cross-validation two jobs, model selection and model
+assessment. Model selection chooses a model's shape or its tuning parameters. Model assessment
+asks how good the chosen model is.
+
+This document works through the first job on three published studies, and then shows what the
+second job costs when the folds are drawn without thinking about the data.
+
+The distinction that organises everything below is between two kinds of quantity in a fitted
+model. A **parameter** is what the data pick: $\hat\beta = \arg\min_b \mathrm{RSS}(b)$. A
+**hyperparameter** is what you pick before the data are consulted — $k$, the degree of a
+polynomial, the number of folds $K$, next week's $\lambda$, and, as @sec-folds argues, the way the
+folds are constructed.
+
+The data cannot pick the second kind by the same route, because training MSE falls monotonically
+in flexibility. Minimise it over $k$ and you land on $k = 1$ every time, which is Lecture 3's
+high-variance corner. Minimise it over polynomial degree and you take the highest degree
+available. The choice therefore has to be made on rows the model has not seen, which is the second
+loop that cross-validation supplies.
+
+| hyperparameter | where you met it | what it controls |
+|:--|:--|:--|
+| $k$ | lecture 3 | how much to smooth |
+| polynomial degree | lecture 4 | how curved $f$ may be |
+| $K$ | lecture 4 | bias and variance of the CV estimate itself |
+| $\lambda$ | next lecture | how hard to shrink |
+| the fold structure | @sec-folds | what "out of sample" is taken to mean |
+
+## How each study is described before it is analysed
+
+Describing a study carefully before fitting anything is worth the two minutes it costs, and there
+is a good vocabulary for doing it. Slough and Tyson (2023) build a framework for meta-analysis
+that turns out to be useful well outside that setting, because it forces you to say what a study
+is aiming at before you say how it was estimated.
+
+In their Definition 2, a study is a triple $\mathcal{E} = \{m, (\omega', \omega''), \theta\}$:
+
+- The **setting** $\theta$ collects features of the population, such as subject attributes, and
+  features of the environment that bear on the behaviour under investigation. The set of settings
+  $\Theta$ marks the scope conditions of the theory, meaning where the mechanism could plausibly
+  arise at all.
+- The **contrast** $(\omega', \omega'')$ is the comparison of substantive interest, most often
+  treatment against control, drawn from a set of potential instruments.
+- The **measurement strategy** $m$ says which outcomes are of interest and how they are measured.
+
+Two further terms matter for what follows. A **mechanism** shows itself only through its
+observable influence, which depends jointly on the measurement strategy and the contrast; it has
+external validity when it produces the same treatment effect across settings, evaluated at the
+same contrast and measured the same way. And the **empirical target** $\tau_m(\omega', \omega'' \mid \theta)$
+is the quantity the study is actually after, the answer to "what is the effect of $A$ on $B$?",
+written in their equation (1) as a difference between functionals of potential outcomes over the
+units on which the mechanism operates.
+
+The reason to import this vocabulary into a section on tuning is that the empirical target is
+defined before any estimator is chosen. Flexibility and fold construction are decisions about
+estimation. Both can quietly move what you end up estimating away from the target you named, and
+the two studies in @sec-vernby and @sec-hma differ in exactly that respect.
+
+Each study below is introduced with its full citation, the question it asks, and then the five
+components above, so that by the time an estimator appears you already know what it is supposed to
+be estimating.
+
+# A knob that invents a finding: noncitizen suffrage and school spending in Sweden {#sec-vernby}
+
+## Step 1: what Vernby studies, and what the study is aiming at
+
+> Vernby, Kåre. 2013. "Inclusion and Public Policy: Evidence from Sweden's Introduction of
+> Noncitizen Suffrage." *American Journal of Political Science* 57(1): 15–29.
+
+**The question.** Sweden extended the right to vote in local elections to resident non-citizens in
+1976. Does adding a group to the electorate change what elected officials spend money on? Vernby
+looks at education spending, the largest municipal budget item that immigrant households draw on
+heavily, and asks whether municipalities where the newly enfranchised were a larger share of the
+electorate moved their budgets further.
+
+**The study, in the terms of Slough and Tyson (2023).**
+
+| component | in this study |
+|:--|:--|
+| setting $\theta$ | Swedish municipalities around the 1976 reform: decentralised local government with real control over school budgets, and a national franchise change that arrives everywhere at once. Municipalities differ in their tax base, which is the feature of the setting the paper cares about. |
+| contrast $(\omega', \omega'')$ | not a binary treatment. The comparison is between municipalities where the newly enfranchised were a larger share of the electorate and those where they were a smaller share, so the contrast is defined over a continuous instrument. |
+| measurement strategy $m$ | the change in municipal education spending, `school_diff`. |
+| mechanism | electoral incentive: officials facing an electorate that now includes non-citizen residents shift spending toward services those residents use. |
+| empirical target $\tau_m(\omega',\omega''\mid\theta)$ | the effect of enfranchisement intensity on school spending **at a given tax base**. |
+
+The last row is the one to hold on to. Because the tax base indexes the setting, the target is not
+a single number but a function of $\theta$, and the paper's substantive claim is a claim about the
+shape of that function. Estimating it is where the tuning problem enters, and @sec-hma will show a
+study with the same structure that comes out differently.
+
+```{r}
+#| label: load-interflex
+u <- paste0("https://raw.githubusercontent.com/xuyiqing/",
+            "interflex/master/data/interflex.RData")
+# Download once, then reuse the local copy on later renders.
+if (!file.exists("interflex.RData")) download.file(u, "interflex.RData", mode = "wb")
+# load() puts several objects into the session at once, named as they were saved; one of them
+# is app_vernby2013. This is unlike read.csv(), which returns a single object you assign.
+load("interflex.RData")
+v <- app_vernby2013
+c(municipalities = nrow(v), variables = ncol(v))
+```
+
+| role | variable |
+|:--|:--|
+| outcome $Y$ | `school_diff` |
+| treatment $D$ | `noncitvotsh` |
+| moderator $X$ | `Taxbase2` |
+
+## Step 2: what the raw data look like before anything is fitted
+
+```{r}
+#| label: fig-vernby-desc
+#| fig-cap: "Distributions of the outcome, the treatment and the moderator across 183 Swedish municipalities. The moderator is bunched and the treatment is skewed, which will matter in Step 4."
+#| fig-height: 3.2
+# ggplot draws one panel per level of a grouping variable, so the three variables are stacked
+# into a single long data frame: one column of values, one column naming the variable.
+long <- rbind(
+  data.frame(value = v$school_diff,  var = "Y: change in school spending"),
+  data.frame(value = v$noncitvotsh,  var = "D: noncitizen share of electorate"),
+  data.frame(value = v$Taxbase2,     var = "X: tax base (moderator)"))
+# factor() with explicit levels fixes the panel order; without it ggplot sorts alphabetically.
+long$var <- factor(long$var, levels = unique(long$var))
+ggplot(long, aes(value)) +
+  geom_histogram(bins = 28, fill = blu, colour = "white", linewidth = .2) +
+  facet_wrap(~ var, scales = "free", nrow = 1) +
+  labs(x = NULL, y = "municipalities")
+```
+
+```{r}
+#| label: vernby-desc-tab
+# sapply() runs summary() on each of the three columns and returns a matrix of the results;
+# t() transposes it so variables are rows, which reads better as a table.
+knitr::kable(round(t(sapply(v[, c("school_diff", "noncitvotsh", "Taxbase2")], summary)), 3))
+```
+
+Two features carry forward. The treatment is skewed: half the municipalities have a non-citizen
+electorate below `r fmt(median(v$noncitvotsh)*100,1)`%, and the largest is
+`r fmt(max(v$noncitvotsh)*100,1)`%. The moderator is bunched: the middle half of municipalities
+sit between `r fmt(quantile(v$Taxbase2,.25),2)` and `r fmt(quantile(v$Taxbase2,.75),2)`, while the
+range runs out to `r fmt(max(v$Taxbase2),2)`. In the language of Step 1, most of the settings we
+observe are similar to each other, and the settings in the upper tail are few.
+
+```{r}
+#| label: fig-vernby-scatter
+#| fig-cap: "Change in school spending against noncitizen electorate share, within thirds of the tax base, with a within-panel least squares line. The slope flattens from left to right."
+#| fig-height: 3.2
+# Split the moderator into three groups of equal size. Using quantiles as breakpoints (rather
+# than evenly spaced cut points) puts 61 municipalities in each group.
+v$bin <- cut(v$Taxbase2,
+             breaks = quantile(v$Taxbase2, c(0, 1/3, 2/3, 1)),
+             labels = c("low tax base", "middle", "high tax base"),
+             include.lowest = TRUE)     # otherwise the single smallest value is left out
+ggplot(v, aes(noncitvotsh, school_diff)) +
+  geom_point(colour = ink, alpha = .55, size = 1.6) +
+  geom_smooth(method = "lm", se = FALSE, colour = acc, linewidth = .8) +
+  facet_wrap(~ bin, nrow = 1) +
+  labs(x = "noncitizen share of the electorate", y = "change in school spending")
+```
+
+The paper's story is visible in the raw data: the slope is steepest among low-tax-base
+municipalities and flattest among high-tax-base ones. What the raw data cannot show is what
+happens past the right-hand panel, and that is precisely what the published estimate will claim
+to know.
+
+## Step 3: reproducing the published estimate
+
+```{r}
+#| label: vernby-lm
+# In an R formula, a * b is shorthand for a + b + a:b, so this fits both main effects and the
+# interaction. The interaction coefficient is the fourth row of the output.
+m <- lm(school_diff ~ noncitvotsh * Taxbase2, data = v)
+round(summary(m)$coefficients, 3)
+```
+
+```{r}
+#| label: vernby-me
+b <- coef(m)                        # the four estimated coefficients
+s <- summary(m)$coefficients        # the full table, including standard errors and t values
+
+# Five representative values of the moderator at which to report the effect.
+qs <- quantile(v$Taxbase2, c(.05, .25, .5, .75, .95))
+
+# In a model with an interaction, the effect of D is not one number: it is
+# beta_D + beta_DX * x, evaluated at whatever value x of the moderator you care about.
+# Naming coefficients by string rather than position keeps this readable.
+lin_me <- b["noncitvotsh"] + b["noncitvotsh:Taxbase2"] * qs
+round(lin_me, 1)
+```
+
+The interaction carries $t = `r fmt(s[4,3])`$, and the implied marginal effect runs from
+$+`r fmt(lin_me[1], 1)`$ at the 5th percentile of the tax base to $`r fmt(lin_me[5], 1)`$ at the
+95th. Read straight off the output, the finding is that enfranchisement raises school spending in
+poor municipalities and lowers it in rich ones.
+
+## Step 4: what the estimate assumes, and where the assumption does its work
+
+The model reports $\widehat{ME}(x) = \hat\beta_D + \hat\beta_{DX}\,x$, a straight line in the
+moderator. That functional form was fixed before anyone looked at the data, and it is a
+hyperparameter in everything but name: flexibility, set to its most restrictive value by
+convention.
+
+A straight line with a negative slope has to cross zero somewhere. It is worth asking where.
+
+```{r}
+#| label: vernby-cross
+# Set beta_D + beta_DX * x = 0 and solve for x to find where the fitted effect changes sign.
+# as.numeric() strips the coefficient name so the result prints as a bare number.
+cross <- as.numeric(-b["noncitvotsh"] / b["noncitvotsh:Taxbase2"])
+
+# mean() of a TRUE/FALSE vector is the proportion that are TRUE, so this converts the crossing
+# point into a percentile of the observed moderator.
+c(crosses_zero_at = round(cross, 3),
+  percentile_of_moderator = round(100 * mean(v$Taxbase2 < cross), 1),
+  municipalities_beyond_it = sum(v$Taxbase2 > cross))
+```
+
+```{r}
+#| label: fig-vernby-support
+#| fig-cap: "Distribution of the tax base, with the tercile cuts (dashed) and the point at which the fitted marginal effect crosses zero (solid). The shaded region holds 19 of 183 municipalities."
+#| fig-height: 3.1
+cuts <- quantile(v$Taxbase2, c(1/3, 2/3))    # the tercile boundaries, drawn as dashed lines
+ggplot(v, aes(Taxbase2)) +
+  # A shaded rectangle covering the region where the fitted effect is negative. ymax = Inf makes
+  # it reach the top of the panel whatever the bar heights turn out to be.
+  annotate("rect", xmin = cross, xmax = max(v$Taxbase2) + .02, ymin = 0, ymax = Inf,
+           fill = acc, alpha = .10) +
+  geom_histogram(bins = 34, fill = blu, colour = "white", linewidth = .2) +
+  geom_rug(sides = "b", alpha = .5, colour = ink) +
+  geom_vline(xintercept = cuts, linetype = "22", colour = gry) +
+  geom_vline(xintercept = cross, colour = acc, linewidth = .8) +
+  annotate("text", x = cross, y = Inf, vjust = 1.6, hjust = -0.06, colour = acc, size = 3.9,
+           label = sprintf("ME crosses zero at %.2f\n%d of %d municipalities lie beyond",
+                           cross, sum(v$Taxbase2 > cross), nrow(v))) +
+  labs(x = "tax base (moderator)", y = "municipalities")
+```
+
+The line crosses zero at `r fmt(cross, 2)`, the `r fmt(100*mean(v$Taxbase2 < cross), 0)`th
+percentile of the moderator, and `r sum(v$Taxbase2 > cross)` of `r nrow(v)` municipalities lie
+beyond that point. So the claim that the effect reverses is a claim about the thin upper tail of a
+bunched distribution.
+
+Put that back into the vocabulary from Step 1. The empirical target is $\tau$ evaluated at a
+setting $\theta$, and there are almost no observed settings in the region where the sign changes.
+The linear model does not measure $\tau$ there; it supplies a value by extending a slope fitted
+where the data are dense. That is a modelling assumption doing the work of a measurement.
+
+## Step 5: letting the data set the flexibility, and comparing
+
+The binning estimator cuts the moderator into thirds and estimates the effect separately inside
+each, imposing no functional form across them. It is the crudest way to let the data choose, which
+is what makes it a useful check.
+
+```{r}
+#| label: vernby-bins
+# lapply() runs the function once per group and returns a list of one-row data frames;
+# do.call(rbind, ...) then stacks that list into a single table. This is the base-R equivalent
+# of a group-by. Within each third we fit a plain regression with no interaction, so the slope
+# on noncitvotsh is the marginal effect for that group alone.
+binest <- do.call(rbind, lapply(levels(v$bin), function(L) {
+  z <- v[v$bin == L, ]
+  f <- lm(school_diff ~ noncitvotsh, data = z)
+  data.frame(third = L, n = nrow(z), xbar = mean(z$Taxbase2),
+             ME = coef(f)[2],                        # slope = the effect in this group
+             se = summary(f)$coefficients[2, 2])     # its standard error
+}))
+knitr::kable(binest, digits = 2, row.names = FALSE)
+```
+
+```{r}
+#| label: fig-vernby
+#| fig-cap: "Marginal effect of noncitizen electorate share across the tax base: the linear interaction (line) against estimates within thirds of the moderator (points, 95% intervals). Both show a decline; only the line changes sign."
+#| echo: false
+xg <- seq(min(v$Taxbase2), max(v$Taxbase2), length.out = 200)
+line <- data.frame(x = xg, me = b[2] + b[4] * xg)
+bins <- transform(binest, lo = ME - 1.96 * se, hi = ME + 1.96 * se)
+ggplot() +
+  geom_hline(yintercept = 0, colour = gry, linewidth = .4) +
+  geom_line(data = line, aes(x, me), colour = acc, linewidth = 1) +
+  geom_errorbar(data = bins, aes(xbar, ymin = lo, ymax = hi), width = .02,
+                colour = ink, linewidth = .6) +
+  geom_point(data = bins, aes(xbar, ME), colour = ink, size = 3) +
+  annotate("text", x = .53, y = b[2] + b[4] * .53 - 4, hjust = 0, vjust = 1,
+           label = "linear interaction", colour = acc, size = 4.2) +
+  annotate("text", x = 1.03, y = bins$hi[3], hjust = .5, vjust = -0.8,
+           label = "estimated within\nthirds of the moderator",
+           colour = ink, size = 3.8, lineheight = .95) +
+  coord_cartesian(ylim = c(-13, 24)) +
+  labs(x = "tax base (moderator)", y = "ME of noncitizen vote share")
+```
+
+At the top of the range the line reports $`r fmt(lin_me[5], 1)`$ while the municipalities in that
+region give $+`r fmt(binest$ME[3], 1)`$ with a standard error of `r fmt(binest$se[3], 2)`.
+
+**What survives.** The decline survives. The effect is clearly larger where the tax base is low
+than where it is high, and the $t = `r fmt(s[4,3])`$ is evidence for that slope. The reversal does
+not survive. Nothing in these data puts the effect below zero anywhere, and in the region where
+the line goes negative the estimate is positive and not distinguishable from zero.
+
+The restrictive setting did not simply cost precision. It produced a sign.
+
+# A knob that confirms the published finding: threat and partisan identity {#sec-hma}
+
+## Step 1: what Huddy, Mason and Aarøe study, and what the study is aiming at
+
+> Huddy, Leonie, Lilliana Mason, and Lene Aarøe. 2015. "Expressive Partisanship: Campaign
+> Involvement, Political Emotion, and Partisan Identity." *American Political Science Review*
+> 109(1): 1–17.
+
+**The question.** Is partisanship a running tally of policy agreement, or a social identity? The
+two accounts predict different emotional responses. If the party is part of who you are, then news
+that threatens its standing should make you angry, and it should do so more strongly the more
+central the party is to your sense of self.
+
+**The study, in the terms of Slough and Tyson (2023).**
+
+| component | in this study |
+|:--|:--|
+| setting $\theta$ | US partisans in an online survey, in a two-party system where partisanship carries social meaning. The feature of the setting that the argument turns on is the strength of a respondent's partisan identity, an attribute of the population rather than of the environment. |
+| contrast $(\omega', \omega'')$ | randomly assigned exposure to threatening information about the party's electoral standing, against a non-threatening control. Unlike @sec-vernby, this contrast is binary and under the researchers' control. |
+| measurement strategy $m$ | a self-reported anger index built from emotion items and scaled to run from 0 to 1. |
+| mechanism | identity threat: an attack on a group that is central to the self provokes anger, in proportion to how central the group is. |
+| empirical target $\tau_m(\omega',\omega''\mid\theta)$ | the effect of threat on anger **at a given level of partisan identity**. |
+
+Structurally this is the same target as Vernby's: an effect that is a function of the setting
+rather than a single number. The interesting difference is empirical rather than conceptual, and
+Step 2 shows what it is.
+
+```{r}
+#| label: hma-setup
+h <- app_hma2015                                   # loaded with interflex above
+c(n = nrow(h),
+  control = sum(h$threat == 0),                    # sum() over a TRUE/FALSE vector counts TRUEs
+  treated = sum(h$threat == 1))
+```
+
+| role | variable |
+|:--|:--|
+| outcome $Y$ | `totangry` |
+| treatment $D$ | `threat` |
+| moderator $X$ | `pidentity` |
+
+## Step 2: what the raw data look like before anything is fitted
+
+Two things are worth checking before any model: whether randomisation did its job, and where the
+moderator has data.
+
+```{r}
+#| label: hma-balance
+# If assignment was random, the two arms should look alike on a pre-treatment variable.
+# A large p-value here is reassuring; it is not a test we hope to "pass" so much as a sanity check.
+t.test(pidentity ~ threat, data = h)$p.value
+```
+
+```{r}
+#| label: fig-hma-desc
+#| fig-cap: "Partisan identity by experimental arm (left) and the anger index (right), n = 1,482. The arms overlap throughout the moderator's range and the outcome piles up at zero."
+#| fig-height: 3.2
+h$arm <- factor(h$threat, levels = 0:1, labels = c("control", "threat"))  # 0/1 -> readable labels
+
+# Stack the two variables into one long data frame so facet_wrap() can draw them side by side.
+# Each row records a value, which arm it came from, and which variable it belongs to.
+d_mod <- data.frame(value = h$pidentity, arm = h$arm, var = "X: partisan identity, by arm")
+d_out <- data.frame(value = h$totangry,  arm = h$arm, var = "Y: anger index")
+
+ggplot(rbind(d_mod, d_out), aes(value, fill = arm)) +
+  # position = "identity" overlays the two arms instead of stacking them
+  geom_histogram(bins = 26, position = "identity", alpha = .55, colour = NA) +
+  facet_wrap(~ var, scales = "free", nrow = 1) +   # "free" = each panel gets its own axis range
+  scale_fill_manual(values = c(gry, acc)) +
+  labs(x = NULL, y = "respondents", fill = NULL) +
+  theme(legend.position = "bottom")
+```
+
+Randomisation holds: the arms differ on the moderator by
+`r fmt(abs(diff(tapply(h$pidentity, h$threat, mean))), 3)` with $p =
+`r fmt(t.test(pidentity ~ threat, data = h)$p.value, 2)`$. More important for what follows, the
+moderator is supported across its whole range in both arms. Compare @fig-vernby-support, where the
+upper tail held 19 municipalities. Here the empirical target is estimable everywhere we want to
+report it, which is a reason to expect a different verdict from the same exercise.
+
+The outcome deserves a second look: `r fmt(100*mean(h$totangry == 0), 0)`% of respondents report
+exactly zero anger. A floor that large flattens relationships and rewards heavy smoothing.
+
+```{r}
+#| label: fig-hma-raw
+#| fig-cap: "Mean anger by arm within six equal-sized bins of partisan identity. The vertical gap between the lines is the marginal effect, before any model is imposed."
+#| fig-height: 3.1
+# cut() slices a continuous variable into intervals. Using quantile() as the breakpoints makes the
+# bins equal in *size* (about 247 respondents each) rather than equal in width.
+h$mbin <- cut(h$pidentity,
+              breaks = quantile(h$pidentity, seq(0, 1, length.out = 7)),
+              include.lowest = TRUE)             # otherwise the single lowest value falls outside
+
+# aggregate() computes a summary of one variable within groups: here, mean anger by bin and arm.
+agg <- aggregate(totangry ~ mbin + arm, data = h, FUN = mean)
+
+# tapply() gives the mean of pidentity inside each bin; we use it to place points on the x axis.
+# Indexing by as.character(agg$mbin) lines those means up with the rows of `agg`.
+agg$mid <- tapply(h$pidentity, h$mbin, mean)[as.character(agg$mbin)]
+
+ggplot(agg, aes(mid, totangry, colour = arm)) +
+  geom_line(linewidth = .9) + geom_point(size = 2.4) +
+  scale_colour_manual(values = c(gry, acc)) +
+  labs(x = "partisan identity (bin means)", y = "mean anger", colour = NULL) +
+  theme(legend.position = "bottom")
+```
+
+The gap between the two lines is the quantity the paper is after. It widens as identity rises,
+which is the claim, and it widens gently, which the linear model is about to exaggerate.
+
+## Step 3: reproducing the published estimate
+
+```{r}
+#| label: hma-lm
+mh <- lm(totangry ~ threat * pidentity, data = h)  # a * b expands to a + b + a:b
+round(summary(mh)$coefficients, 3)
+bh <- coef(mh); sh <- summary(mh)$coefficients     # keep these for the inline numbers below
+```
+
+The interaction is $\hat\beta_{DX} = `r fmt(bh[4], 3)`$ with a standard error of
+`r fmt(sh[4,2], 3)`, so $t = `r fmt(sh[4,3])`$: strong, and in the predicted direction.
+
+## Step 4: letting cross-validation choose how much to smooth
+
+The tool is Lecture 3's, applied separately within each experimental arm. Estimate
+$E[Y \mid X]$ by $k$-NN among control respondents, do the same among treated respondents, and read
+the marginal effect at $x$ as the gap between the two local averages. Then let 10-fold
+cross-validation pick $k$ in each arm.
+
+```{r}
+#| label: knn1
+# k-NN for a single predictor, returning one column of predictions per value of k.
+#   xtr, ytr : training predictor and outcome
+#   xte      : points at which we want predictions
+#   ks       : a vector of neighbourhood sizes to try
+knn1 <- function(xtr, ytr, xte, ks) {
+  # outer(a, b, f) builds a matrix with one entry for every (a, b) pair. Here entry [i, j] is the
+  # squared distance between test point i and training point j, so M has one row per test point.
+  M <- outer(xte, xtr, function(a, b) (a - b)^2)
+
+  out <- matrix(NA_real_, length(xte), length(ks))   # empty container: test points x values of k
+
+  for (i in seq_along(xte)) {                        # seq_along() = 1, 2, ..., length(xte)
+    o <- order(M[i, ])                               # indices of training points, nearest first
+    # cumsum(ytr[o]) is the running total of y over neighbours in order of distance, and dividing
+    # by 1, 2, 3, ... turns it into the running mean. Element k of that vector is exactly the
+    # k-NN prediction, so subsetting by `ks` gets every k we asked for in one pass.
+    out[i, ] <- (cumsum(ytr[o]) / seq_along(o))[ks]
+  }
+  out
+}
+
+# 10-fold CV over the same grid of k, following Lecture 4.
+cvk1 <- function(x, y, ks, K = 10) {
+  set.seed(6039)
+  # rep(1:K, length.out = n) gives 1,2,...,K,1,2,... up to n; sample() shuffles it, so every
+  # observation gets a fold label and the folds come out nearly equal in size.
+  f <- sample(rep(1:K, length.out = length(y)))
+
+  M <- matrix(NA_real_, K, length(ks))               # one row per fold, one column per k
+  for (j in 1:K) {
+    # Fit on everything except fold j (f != j), predict the held-out fold (f == j), and record
+    # the mean squared error for every k at once.
+    M[j, ] <- colMeans((y[f == j] - knn1(x[f != j], y[f != j], x[f == j], ks))^2)
+  }
+  colMeans(M)                                        # average the folds, giving one MSE per k
+}
+
+ks <- c(5, 10, 25, 50, 100, 200, 400)
+
+# Run the CV separately in each arm. sapply() applies the function to 0 and then 1 and binds the
+# two results into a matrix with one column per arm.
+cvtab <- sapply(0:1, function(d) {
+  z <- h[h$threat == d, ]
+  cvk1(z$pidentity, z$totangry, ks)
+})
+dimnames(cvtab) <- list(k = ks, arm = c("control", "threat"))
+round(cvtab, 4)
+
+# which.min() returns the position of the smallest value; ks[...] converts that position back
+# into the value of k it corresponds to.
+best <- ks[apply(cvtab, 2, which.min)]
+setNames(best, c("control arm", "treated arm"))
+```
+
+Cross-validation asks for $k = `r best[1]`$ and $k = `r best[2]`$, out of `r sum(h$threat==0)` and
+`r sum(h$threat==1)` observations. The data want heavy smoothing, and the CV table shows the
+preference is broad rather than knife-edge: the column is nearly flat across the larger values of
+$k$. Recall from Lecture 3 that as $k$ approaches $n$ the fit approaches the intercept-only model.
+The data are saying that very little local structure is supported here.
+
+## Step 5: three settings of one knob, and three different papers
+
+```{r}
+#| label: hma-me
+# A grid of moderator values spanning the 5th to 95th percentile, where we will report effects.
+g <- seq(quantile(h$pidentity, .05), quantile(h$pidentity, .95), length.out = 9)
+
+# The marginal effect at each grid point: the treated-arm local average minus the control-arm one.
+# knn1() returns a matrix, so [, 1] takes its single column when we pass a single k.
+me <- function(k) {
+  knn1(h$pidentity[h$threat == 1], h$totangry[h$threat == 1], g, k)[, 1] -
+  knn1(h$pidentity[h$threat == 0], h$totangry[h$threat == 0], g, k)[, 1]
+}
+
+round(rbind(`linear interaction` = bh["threat"] + bh["threat:pidentity"] * g,
+            `k-NN, CV's k`       = me(max(best)),
+            `k-NN, k = 5`        = me(5)), 2)
+```
+
+```{r}
+#| label: fig-hma
+#| fig-cap: "Marginal effect of threat across partisan identity under three settings of the flexibility knob. The rigid setting is steeper than the data support; k = 5 crosses zero on noise; the cross-validated fit lies between them."
+#| echo: false
+lab <- c("linear interaction (degree 1, untuned)",
+         sprintf("k-NN, k chosen by CV (k = %d)", max(best)),
+         "k-NN, k = 5 (too flexible)")
+d2 <- rbind(data.frame(x = g, me = bh["threat"] + bh["threat:pidentity"] * g, w = lab[1]),
+            data.frame(x = g, me = me(max(best)), w = lab[2]),
+            data.frame(x = g, me = me(5), w = lab[3]))
+d2$w <- factor(d2$w, levels = lab)
+ggplot(d2, aes(x, me, colour = w)) +
+  geom_hline(yintercept = 0, colour = gry, linewidth = .4) +
+  geom_line(linewidth = .9) + geom_point(size = 1.8) +
+  scale_colour_manual(values = c(acc, ink, gry)) +
+  labs(x = "partisan identity (moderator)", y = "ME of threat", colour = NULL) +
+  theme(legend.position = "bottom")
+```
+
+| setting of the knob | what you would report | |
+|:--|:--|:--|
+| $k = 5$, untuned | the effect is non-monotonic and turns negative | noise |
+| degree 1, untuned | the effect rises steeply, 0.16 to 0.44 | an overstated slope |
+| $k$ from cross-validation | the effect rises gently, 0.25 to 0.37 | what the data support |
+
+**What survives.** The paper's claim survives. The effect of threat is positive across the range
+and larger among strong identifiers. The linear model overstates how much larger, being steeper at
+both ends than the local averages are, but the direction and the ordering hold.
+
+Two conclusions follow, and the second is the one that usually goes unsaid. First, an untuned knob
+can manufacture a finding in either direction: $k = 5$ produces a dip below zero that a careless
+reader could write a paragraph about. Second, tuning here confirms the published result, and that
+is itself a finding. You are only entitled to say it because you checked.
+
+## How often does the flexibility choice change a published conclusion?
+
+Hainmueller, Mummolo and Xu ran this check on 46 interaction effects from 22 articles in the
+*APSR*, *AJPS*, *Comparative Political Studies*, *International Organization* and the *JOP*,
+published between 2006 and 2015. The effect changes linearly in the moderator in about 48% of
+cases. In roughly 70%, you cannot reject the hypothesis that the effect is the same at typical low
+and typical high values of the moderator.
+
+The method is itself under discussion, which is worth knowing before citing it as settled.
+Simonsohn (2024), and the companion piece "Dear Political Scientists: Don't Bin, GAM Instead",
+argues that binning is the wrong remedy and that the curve should be modelled with a generalised
+additive model. Hainmueller, Liu, Liu, Mummolo and Xu (2025) reply that the critique measures
+against the wrong estimand, that the kernel estimator does recover the conditional marginal effect,
+and that GAMs suit exploration rather than this task. Both sides agree on the point that matters
+here: the flexibility is a choice, it has to be made explicitly, and the data have to be allowed to
+inform it. They disagree about how, which leaves the question open.
+
+# The folds are a hyperparameter too, and drawing them badly selects the wrong model {#sec-folds}
+
+## Step 1: what this exercise asks, and how it differs from the two studies above
+
+> Coppedge, Michael, et al. 2025. *V-Dem Country–Year Dataset v15*. Varieties of Democracy
+> Institute. <https://v-dem.net>
+
+**The question.** How much of a country's level of democracy is accounted for by its structural
+conditions? This is the oldest question in comparative political economy, posed here as a
+prediction problem rather than a causal one.
+
+**The exercise, in the terms of Slough and Tyson (2023).** The fit with their framework is
+deliberately partial, and the gaps are informative.
+
+| component | in this exercise |
+|:--|:--|
+| setting $\theta$ | a country in a year, from 1960 onward. Countries differ in income, size, resource dependence and region, and these are the features of the setting we use as predictors. |
+| contrast $(\omega', \omega'')$ | **none**. Nothing is manipulated and no comparison of treatment against control is defined, so this is not a study in their sense. |
+| measurement strategy $m$ | V-Dem's electoral democracy index `v2x_polyarchy`, which runs 0 to 1 and aggregates expert ratings of suffrage, elected officials, clean elections, and freedom of expression and association. |
+| mechanism | modernization: economic development changes the distribution of resources and the costs of repression in ways that favour competitive politics. Here it is a conjecture behind the exercise rather than something the design isolates. |
+| target | not $\tau$ but $E[Y \mid X]$: a conditional expectation, not a treatment effect. |
+
+The missing contrast is the point. Without one there is no treatment effect to transport, so
+external validity in Slough and Tyson's sense does not apply directly. What does carry over is the
+question their definition is built on: does what we learned in the settings we observed hold in
+settings we did not?
+
+That question has a direct counterpart in how the folds are drawn. Holding out random country-years
+asks whether the fitted function carries to unseen *rows* inside countries we have already seen.
+Holding out whole countries asks whether it carries to unseen *settings*. Those are different
+questions, they have very different answers here, and only the second is the one anybody actually
+cares about.
+
+```{r}
+#| label: vdem-prep
+uv <- paste0("https://raw.githubusercontent.com/vdeminstitute/",
+             "vdemdata/master/data/vdem.RData")
+
+# The full V-Dem file is 34 MB and has over 4,000 columns, so we download it once, keep the seven
+# columns used here, and save that small version. Later renders read the small file and skip the
+# download entirely.
+if (!file.exists("vdem_slim.rds")) {
+  if (!file.exists("vdem.RData")) download.file(uv, "vdem.RData", mode = "wb")
+  load("vdem.RData")                                  # creates an object called `vdem`
+  saveRDS(vdem[, c("country_name", "year", "v2x_polyarchy", "e_gdppc", "e_pop",
+                   "e_total_resources_income_pc", "e_regionpol_6C")], "vdem_slim.rds")
+  rm(vdem); gc()                                      # drop the large object and reclaim memory
+}
+vd <- readRDS("vdem_slim.rds")
+
+vd <- vd[vd$year >= 1960 & vd$year <= 2023, ]
+vd <- vd[complete.cases(vd), ]                        # keep rows with no missing value anywhere
+
+# Logs compress long right tails so that a $1,000 difference matters more at low income than high.
+# pmax(x, .01) floors the value first, because log(0) is undefined.
+vd$lgdp <- log(pmax(vd$e_gdppc, .01))
+vd$lpop <- log(pmax(vd$e_pop, .01))
+# log1p(x) computes log(1 + x), which is the usual fix when a variable is legitimately zero.
+vd$lres <- log1p(pmax(vd$e_total_resources_income_pc, 0))
+
+c(country_years = nrow(vd), countries = length(unique(vd$country_name)),
+  from = min(vd$year), to = max(vd$year), var_y = round(var(vd$v2x_polyarchy), 4))
+```
+
+Coverage ends in `r max(vd$year)` because the resource-income series does. The panel is only
+mildly unbalanced: the median country contributes `r median(table(vd$country_name))` years.
+
+## Step 2: what the data look like, and what the panel structure implies
+
+```{r}
+#| label: fig-vdem-map
+#| fig-cap: "Electoral democracy index in 2006, the last year of the analysis sample. Countries in grey are not in the sample, mostly for missing economic data."
+#| fig-height: 3.6
+#| dev: png
+#| dpi: 200
+#| echo: false
+if (requireNamespace("maps", quietly = TRUE)) {
+  yr <- max(vd$year)
+  snap <- vd[vd$year == yr, c("country_name", "v2x_polyarchy")]
+  # V-Dem and the maps package spell some countries differently, so a few names are translated.
+  fixes <- c("United States of America" = "USA", "United Kingdom" = "UK",
+             "Czechia" = "Czech Republic", "Eswatini" = "Swaziland",
+             "The Gambia" = "Gambia", "Republic of the Congo" = "Republic of Congo",
+             "Burma/Myanmar" = "Myanmar", "Trinidad and Tobago" = "Trinidad")
+  snap$region <- ifelse(snap$country_name %in% names(fixes),
+                        fixes[snap$country_name], snap$country_name)
+  snap$region[grepl("rkiye", snap$region)] <- "Turkey"
+  # map_data() returns one row per boundary vertex; merging attaches the index to every vertex of
+  # a country's outline. Re-sorting by `order` afterwards keeps the polygons drawable.
+  w <- merge(map_data("world"), snap[, c("region", "v2x_polyarchy")], by = "region", all.x = TRUE)
+  w <- w[order(w$order), ]
+  ggplot(w, aes(long, lat, group = group, fill = v2x_polyarchy)) +
+    geom_polygon(colour = "white", linewidth = .08) +
+    coord_map("mollweide", xlim = c(-180, 180), ylim = c(-58, 84)) +
+    scale_fill_gradient(low = "#f3e6d4", high = "#1d4e6f", na.value = "grey92",
+                        limits = c(0, 1), name = "polyarchy") +
+    theme_void(base_size = 12) + theme(legend.position = "right")
+} else {
+  message("install the 'maps' package to see this figure")
+}
+```
+
+```{r}
+#| label: fig-vdem-desc
+#| fig-cap: "Distribution of the electoral democracy index across 6,697 country-years. The mass sits at the two ends."
+#| fig-height: 3.2
+#| echo: false
+ggplot(data.frame(value = vd$v2x_polyarchy), aes(value)) +
+  geom_histogram(bins = 34, fill = blu, colour = "white", linewidth = .2) +
+  labs(x = "polyarchy", y = "country-years",
+       subtitle = sprintf("%.0f%% below 0.3; %.0f%% above 0.7",
+                          100*mean(vd$v2x_polyarchy < .3), 100*mean(vd$v2x_polyarchy > .7)))
+```
+
+```{r}
+#| label: fig-vdem-gdp
+#| fig-cap: "Electoral democracy against log GDP per capita, with a loess fit and its 95% band. The association is positive and loose."
+#| fig-height: 3.4
+#| dev: png
+#| dpi: 200
+#| echo: false
+ggplot(vd, aes(lgdp, v2x_polyarchy)) +
+  geom_point(alpha = .13, size = .9, colour = ink) +
+  geom_smooth(method = "loess", span = .7, se = TRUE, colour = acc,
+              fill = acc, alpha = .18, linewidth = 1) +
+  labs(x = "log GDP per capita", y = "polyarchy",
+       subtitle = sprintf("r = %.2f across %s country-years",
+                          cor(vd$lgdp, vd$v2x_polyarchy), format(nrow(vd), big.mark = ",")))
+```
+
+Two things to notice. The association is real but loose, with plenty of poor democracies and rich
+autocracies. And the smoother turns down at the far right, where its band widens sharply: that is a
+handful of very rich, very undemocratic country-years, mostly oil exporters, together with the
+boundary behaviour of a local smoother running out of neighbours. It is the same thin-tail problem
+as @fig-vernby-support, appearing in a flexible estimator rather than a straight line. Neither the
+line nor the curve should be read out there.
+
+Now the step that decides everything below. The rows are not independent draws. Each country
+appears up to `r max(table(vd$country_name))` times, and regime type moves very little from one
+year to the next.
+
+```{r}
+#| label: vdem-persistence
+vd <- vd[order(vd$country_name, vd$year), ]     # sort so each country's years are consecutive
+
+# ave() applies a function within groups and returns a vector the same length as the input.
+# Here the function drops the last element and puts NA in front, which shifts the series down by
+# one row: each row now carries the *previous year's* value for the same country.
+vd$lag1  <- ave(vd$v2x_polyarchy, vd$country_name, FUN = function(z) c(NA, head(z, -1)))
+vd$lagyr <- ave(vd$year,          vd$country_name, FUN = function(z) c(NA, head(z, -1)))
+
+# Keep only genuine consecutive pairs: a lag exists, and the years really are one apart (some
+# countries have gaps in coverage, and we do not want to treat 1989 and 1994 as adjacent).
+ok <- !is.na(vd$lag1) & (vd$year - vd$lagyr == 1)
+
+c(consecutive_pairs = sum(ok),
+  correlation_with_own_previous_year = round(cor(vd$v2x_polyarchy[ok], vd$lag1[ok]), 3))
+```
+
+```{r}
+#| label: fig-vdem-persist
+#| fig-cap: "Each country-year's electoral democracy index against the same country's value one year earlier, 6,524 consecutive pairs, with the 45-degree line. r = 0.988."
+#| fig-height: 3.6
+#| dev: png
+#| dpi: 200
+#| echo: false
+ggplot(vd[ok, ], aes(lag1, v2x_polyarchy)) +
+  geom_abline(slope = 1, intercept = 0, colour = acc, linewidth = .7) +
+  geom_point(alpha = .12, size = .9, colour = ink) +
+  coord_equal() +
+  labs(x = "polyarchy, previous year", y = "polyarchy, this year")
+```
+
+A correlation of `r fmt(cor(vd$v2x_polyarchy[ok], vd$lag1[ok]), 3)` between a country-year and its
+own previous year means that any procedure putting Denmark 1994 in the training set and Denmark
+1995 in the held-out set is not testing generalisation. It is handing the model a near-copy of the
+answer. Everything in Steps 4 and 5 follows from this figure.
+
+```{r}
+#| label: vdem-design
+# Region is categorical, so it enters as a set of 0/1 indicators. model.matrix() builds them;
+# "- 1" suppresses the intercept so we get one column per region, and "[, -1]" then drops the
+# first column to leave a reference category, which avoids perfect collinearity.
+regmat <- model.matrix(~ factor(e_regionpol_6C) - 1, data = vd)[, -1, drop = FALSE]
+
+X    <- cbind(as.matrix(vd[, c("lgdp", "lpop", "lres", "year")]), regmat)
+y    <- vd$v2x_polyarchy
+ctry <- vd$country_name
+dim(X)                                          # rows = country-years, columns = predictors
+```
+
+## Step 3: writing the estimator and constructing the folds two ways
+
+Note where the standardisation happens: inside the fold, computed on training rows only. That is
+Lecture 4's rule, and it is the easiest one to break by accident.
+
+```{r}
+#| label: vdem-helpers
+# k-NN with several predictors, again returning one column per value of k.
+knn_all <- function(Xtr, ytr, Xte, ks) {
+  # Predictors are on different scales (log income, log population, year), and k-NN measures
+  # distance, so an unstandardised variable with a big range would dominate. We centre and scale
+  # using the TRAINING rows only, then apply those same numbers to the test rows.
+  mu <- colMeans(Xtr); sdv <- apply(Xtr, 2, sd); sdv[sdv == 0] <- 1
+  A <- scale(Xtr, mu, sdv)
+  B <- scale(Xte, mu, sdv)
+
+  # Squared distance between every test row and every training row, via
+  # ||b - a||^2 = ||b||^2 + ||a||^2 - 2 a.b. Written this way it is one matrix multiplication
+  # instead of a double loop, which matters at 6,697 rows.
+  Dm <- outer(rowSums(B^2), rowSums(A^2), "+") - 2 * B %*% t(A)
+
+  out <- matrix(NA_real_, nrow(B), length(ks))
+  for (i in seq_len(nrow(B))) {
+    o <- order(Dm[i, ])                          # training rows sorted nearest-first
+    out[i, ] <- (cumsum(ytr[o]) / seq_along(o))[ks]   # running means, as in knn1() above
+  }
+  out
+}
+
+# Cross-validation driven by a vector of fold labels, so the same function serves both designs.
+cv <- function(fold, ks) {
+  M <- matrix(NA_real_, max(fold), length(ks))
+  for (j in 1:max(fold)) {
+    tr <- fold != j; te <- fold == j             # TRUE/FALSE vectors selecting rows
+    M[j, ] <- colMeans((y[te] - knn_all(X[tr, ], y[tr], X[te, ], ks))^2)
+  }
+  colMeans(M)
+}
+
+ks2 <- c(1, 2, 3, 5, 10, 25, 50, 100, 250, 500)
+```
+
+```{r}
+#| label: vdem-folds
+# (A) Folds drawn at random over country-years, exactly as in Lecture 4.
+set.seed(6039)
+fr <- sample(rep(1:10, length.out = nrow(vd)))
+
+# (B) Folds drawn over COUNTRIES. Assign each country to a fold, then give every row of that
+# country the same label. match(ctry, uc) finds each row's position in the list of unique
+# countries, and indexing the country-level assignment by that position expands it back to rows.
+set.seed(6039)
+uc <- unique(ctry)
+fb <- sample(rep(1:10, length.out = length(uc)))[match(ctry, uc)]
+
+# A diagnostic worth running before any model. tapply() applies a function within groups, so this
+# counts how many distinct folds each country's rows are spread across. Under (A) a country's
+# rows are scattered; under (B) they are all in one fold, so the count is 1 and the sum is 0.
+c(random_folds  = sum(tapply(fr, ctry, function(z) length(unique(z))) > 1),
+  blocked_folds = sum(tapply(fb, ctry, function(z) length(unique(z))) > 1))
+```
+
+All `r length(unique(ctry))` countries are split across folds under the random design, and none is
+under blocking. Together with the `r fmt(cor(vd$v2x_polyarchy[ok], vd$lag1[ok]), 3)` autocorrelation
+from Step 2, that is enough to predict what follows before a single model is fitted.
+
+```{r}
+#| label: vdem-cv
+#| cache: true
+A <- cv(fr, ks2)   # random folds
+B <- cv(fb, ks2)   # folds drawn over countries
+```
+
+## Step 4: what random folds report
+
+```{r}
+#| label: vdem-random
+#| echo: false
+knitr::kable(data.frame(k = ks2, `CV MSE` = round(A, 4),
+                        `implied R2` = round(1 - A / var(y), 3), check.names = FALSE),
+             row.names = FALSE)
+```
+
+$k = `r ks2[which.min(A)]`$ wins, at a cross-validated MSE of `r fmt(min(A), 4)`, which against an
+outcome variance of `r fmt(var(y), 3)` implies an $R^2$ of
+**`r fmt(1 - min(A)/var(y), 2)`**. Four structural variables, a set of region indicators and an
+average over two neighbours appear to account for 98% of the variation in democracy across the
+postwar world. Modernization theory, solved, in nine lines of base R.
+
+## Step 5: what folds drawn over countries report
+
+```{r}
+#| label: vdem-blocked
+#| echo: false
+knitr::kable(data.frame(
+  ` ` = c("scored on held-out country-years", "scored on held-out countries"),
+  `CV MSE` = c(round(min(A), 4), round(B[which.min(A)], 4)),
+  `implied R2` = round(c(1 - min(A)/var(y), 1 - B[which.min(A)]/var(y)), 3),
+  check.names = FALSE), row.names = FALSE)
+```
+
+The same $k = `r ks2[which.min(A)]`$ model is `r round(B[which.min(A)]/min(A))` times worse, and
+now worse than predicting the global mean. Nothing changed except which rows went into which fold.
+
+```{r}
+#| label: vdem-ols
+#| echo: false
+ols_cv <- function(fold) {
+  df <- as.data.frame(X)
+  mean(sapply(1:max(fold), function(j) {
+    tr <- fold != j; te <- fold == j
+    mean((y[te] - predict(lm(y[tr] ~ ., data = df[tr, ]), df[te, ]))^2)
+  }))
+}
+oa <- ols_cv(fr); ob <- ols_cv(fb)
+```
+
+```{r}
+#| label: fig-vdem
+#| fig-cap: "Cross-validated MSE against k under two fold designs. Circles mark the k each procedure selects; the dashed line is OLS scored on country-blocked folds."
+#| echo: false
+d3 <- rbind(data.frame(k = ks2, mse = A, how = "random 10-fold"),
+            data.frame(k = ks2, mse = B, how = "blocked by country"))
+d3$how <- factor(d3$how, levels = c("random 10-fold", "blocked by country"))
+pick <- data.frame(k = c(ks2[which.min(A)], ks2[which.min(B)]),
+                   mse = c(min(A), min(B)),
+                   how = factor(c("random 10-fold", "blocked by country"),
+                                levels = levels(d3$how)))
+ggplot(d3, aes(k, mse, colour = how)) +
+  geom_hline(yintercept = var(y), linetype = "22", colour = gry) +
+  annotate("text", x = 1, y = var(y), hjust = 0, vjust = 1.5, size = 3.6,
+           colour = "grey40", label = "predicting the global mean") +
+  geom_hline(yintercept = ob, linetype = "42", colour = ink, linewidth = .4) +
+  annotate("text", x = 500, y = ob, hjust = 1, vjust = -0.7, size = 3.6,
+           colour = ink, label = "OLS, blocked") +
+  geom_line(linewidth = .9) + geom_point(size = 2) +
+  geom_point(data = pick, aes(k, mse), size = 5, shape = 21, stroke = 1.1, fill = NA) +
+  scale_x_log10(breaks = ks2) + scale_colour_manual(values = c(acc, ink)) +
+  labs(x = "k (log scale)", y = "CV MSE", colour = NULL) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: vdem-summary
+#| echo: false
+knitr::kable(data.frame(
+  ` ` = c("the k that wins", "its CV MSE", "OLS"),
+  `random folds` = c(as.character(ks2[which.min(A)]), fmt(min(A), 4), fmt(oa, 4)),
+  `blocked by country` = c(as.character(ks2[which.min(B)]), fmt(min(B), 4), fmt(ob, 4)),
+  check.names = FALSE), row.names = FALSE, align = "lrr")
+```
+
+Two things moved, not one. The error estimate was inflated by a factor of
+`r round(B[which.min(A)]/min(A))`. And the hyperparameter the procedure selected moved from
+$k = `r ks2[which.min(A)]`$ to $k = `r ks2[which.min(B)]`$, a factor of
+`r round(ks2[which.min(B)]/ks2[which.min(A)])`. And once whole countries are held out, the tuned
+$k$-NN (`r fmt(min(B), 4)`) and ordinary least squares (`r fmt(ob, 4)`) are indistinguishable.
+Whatever the flexible estimator appeared to be buying under random folds does not survive.
+
+Tuning with leaky folds does not merely overstate your error. It selects the wrong model.
+
+One caveat, since you will re-run this. The exact figures depend on which countries land in which
+fold, so they move a little when the seed changes; exercise 1 asks you to check by how much. What
+does not move is the shape of the result. The inflation factor is large, the selected $k$ moves by
+orders of magnitude, and the tuned local average does not beat a linear model once the folds
+respect the panel.
+
+Why does $k = 2$ win under random folds? The two nearest neighbours of Denmark 1995 are Denmark
+1994 and Denmark 1996, and @fig-vdem-persist showed those carry the same value to three decimals.
+$k = 2$ is not a model of democratisation. It is a lookup table keyed on country identity, and
+random folds hand it the key.
+
+**What survives.** Structural conditions account for a real but modest share of the variation in
+democracy, an $R^2$ near `r fmt(1 - min(B)/var(y), 2)` rather than `r fmt(1 - min(A)/var(y), 2)`,
+and on this design a flexible learner does not beat OLS.
+
+# What to take away, and what to report
+
+Lecture 4's rule was that the fold must redo every data-dependent step: screening, standardising,
+imputing, choosing $k$. This section adds a second rule. **The folds must also respect the
+dependence in the data.** Random $K$-fold assumes the rows are exchangeable draws, and
+@fig-vdem-persist is a two-line check on whether yours are.
+
+| your data | the unit to hold out |
+|:--|:--|
+| country-year or state-year panel | country or state |
+| survey with respondents seen twice | respondent |
+| students in schools, voters in precincts | school or precinct |
+| districts in space | a spatial block |
+| dyads | both members of the dyad |
+| anything with a time order and a forecast | the future |
+
+If two rows would never be separated in the prediction problem you actually face, they should not
+be separated by your folds.
+
+The other rule is that the number which chose your model cannot also be the number that grades it.
+Selection belongs in an inner loop over the grid, run on training rows. Assessment belongs in an
+outer loop, or in a test set you touch once. Do both with one set of folds and the error you
+report is the best of many draws.
+
+**What to report, every time.**
+
+1. The grid you searched, and how many fits it took.
+2. The metric, and why it suits the outcome.
+3. How the folds were drawn, and what unit was held out.
+4. Whether the reported error came from the same loop that chose the model.
+5. For any interaction: the support across the moderator, and one estimate that does not assume
+   linearity.
+
+Three sentences could have been written from this document.
+
+1. *"Noncitizen enfranchisement reduces school spending in wealthy municipalities."* This is an
+   artifact of the straight line, in a tail holding `r sum(v$Taxbase2 > cross)` of `r nrow(v)`
+   municipalities.
+2. *"Structural conditions account for `r fmt(100*(1 - min(A)/var(y)), 0)`% of the variation in
+   democracy."* This is an artifact of the folds, which handed the model each country's own past.
+3. *"The effect declines in the tax base, and flexible estimators do not beat OLS on V-Dem."* This
+   is what survives.
+
+The first two are the more interesting sentences, and that is the problem.
+
+# Try it yourself {.unnumbered}
+
+Each of these is a small edit to the code above, and none takes more than a minute to run.
+
+1. **Change the seed.** Set `set.seed(2026)` where the folds are built in @sec-folds and re-run.
+   How far does the selected $k$ move under random folds, and under blocked folds? Which procedure
+   is more stable, and why would you expect that?
+2. **Change $K$.** Run the V-Dem comparison with $K = 5$ and with $K = 20$. Lecture 4 said $K$
+   trades bias against variance in the CV estimate itself. Can you see it here?
+3. **Block on the wrong thing.** Draw the folds over *years* instead of countries. Does the leak
+   close? Look at @fig-vdem-persist before you run it and predict the answer.
+4. **Commit the standardisation error deliberately.** Move the `scale()` calls in `knn_all()`
+   outside the fold loop, so the whole matrix is standardised once at the start. How far does that
+   alone move the numbers? This is the small cousin of the Step 5 leak, and the one you are most
+   likely to commit by accident.
+5. **Widen the bins.** In @sec-vernby, cut the moderator into 4 and then 5 groups instead of 3. At
+   what point do the intervals become too wide to say anything, and is that a reason to prefer the
+   linear model?
+6. **Check the support in a paper you are reading.** Take any published interaction and draw
+   @fig-vernby-support for it. Where does the fitted marginal effect cross zero, and how many
+   observations lie beyond that point?
+7. **Take it to your own data.** If you have a panel or clustered dataset, run both fold
+   constructions on an outcome you care about and report the two numbers side by side. The gap is
+   a diagnostic, and it is better to know it before a referee asks.
+
+# References {.unnumbered}
+
+Coppedge, Michael, et al. 2025. *V-Dem Country–Year Dataset v15*. Varieties of Democracy Institute.
+
+Hainmueller, Jens, Jonathan Mummolo, and Yiqing Xu. 2019. "How Much Should We Trust Estimates from
+Multiplicative Interaction Models? Simple Tools to Improve Empirical Practice."
+*Political Analysis* 27(2): 163–192.
+
+Hainmueller, Jens, Jiehan Liu, Ziyi Liu, Jonathan Mummolo, and Yiqing Xu. 2025. "A Response to
+Recent Critiques of Hainmueller, Mummolo and Xu (2019) on Estimating Conditional Relationships."
+arXiv:2502.05717.
+
+Hastie, Trevor, Robert Tibshirani, and Jerome Friedman. 2009. *The Elements of Statistical
+Learning*, 2nd ed. New York: Springer, §7.10.2.
+
+Huddy, Leonie, Lilliana Mason, and Lene Aarøe. 2015. "Expressive Partisanship: Campaign
+Involvement, Political Emotion, and Partisan Identity." *American Political Science Review* 109(1):
+1–17.
+
+Roberts, David R., et al. 2017. "Cross-validation strategies for data with temporal, spatial,
+hierarchical, or phylogenetic structure." *Ecography* 40(8): 913–929.
+
+Simonsohn, Uri. 2024. "Interacting with Curves: How to Validly Test and Probe Interactions in the
+Real (Nonlinear) World." *Advances in Methods and Practices in Psychological Science* 7(1).
+
+Slough, Tara, and Scott A. Tyson. 2023. "External Validity and Meta-Analysis."
+*American Journal of Political Science* 67(2): 440–455.
+
+Vernby, Kåre. 2013. "Inclusion and Public Policy: Evidence from Sweden's Introduction of Noncitizen
+Suffrage." *American Journal of Political Science* 57(1): 15–29.
+
+Application data are distributed with the `interflex` package (Hainmueller, Mummolo, Xu and Liu).
+
+# Session information {.unnumbered}
+
+```{r}
+#| label: session
+#| echo: false
+si <- sessionInfo()
+cat(si$R.version$version.string, "|", si$running, "\n")
+cat("ggplot2", as.character(packageVersion("ggplot2")),
+    "| maps", if (requireNamespace("maps", quietly = TRUE))
+      as.character(packageVersion("maps")) else "not installed", "\n")
+cat("seed: 6039 throughout\n")
+```

@@ -1,0 +1,28 @@
+/*-- scss:defaults --*/
+$body-bg: #fdfdfc;
+$body-color: #1f2937;
+$link-color: #b45309;
+$presentation-heading-color: #1f2937;
+$presentation-heading-font-weight: 700;
+$presentation-font-size-root: 30px;
+$presentation-font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+$code-block-font-size: 0.52em;
+
+/*-- scss:rules --*/
+.reveal .slides section { text-align: left; }
+.reveal h2 { font-size: 1.35em; margin-bottom: 0.7em; }
+.accent { color: #b45309; font-weight: 600; }
+.muted { color: #6b7280; }
+.small { font-size: 0.78em; }
+.smaller { font-size: 0.66em; }
+.reveal table { font-size: 0.74em; border-collapse: collapse; margin: 0.4em 0; }
+.reveal table th { border-bottom: 1.5px solid #1f2937; text-align: right; padding: 4px 10px; }
+.reveal table td { padding: 3px 10px; text-align: right; }
+.reveal table th:first-child, .reveal table td:first-child { text-align: left; }
+.reveal blockquote {
+  border-left: 3px solid #b45309; background: none; box-shadow: none;
+  padding: 0.1em 0 0.1em 0.8em; font-style: normal; width: 100%;
+}
+.reveal pre code { max-height: 420px; }
+.reveal .slide-number { color: #9ca3af; }
+.big { font-size: 1.25em; font-weight: 600; }
