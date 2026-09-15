@@ -1,0 +1,179 @@
+---
+title: "Problem Set 1: Regression as Statistical Learning"
+subtitle: "GOVT 6039 | Fall 2026 | Unit 1"
+author: "Your name"
+number-sections: true
+format:
+  pdf:
+    toc: false
+    include-in-header:
+      text: |
+        \setkomafont{disposition}{\normalfont\bfseries}
+        \setkomafont{section}{\normalfont\Large\bfseries}
+        \setkomafont{subsection}{\normalfont\normalsize}
+---
+
+```{r setup, include = FALSE}
+# this chunk contains code that sets global options for the entire .qmd.
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, linewidth = 60, echo = TRUE)
+
+library(tidyverse)
+library(knitr)
+library(haven)
+
+# k-nearest-neighbour regression, exactly as defined in Lecture 3:
+# the estimate at x0 is the mean of y over the k observations nearest to x0.
+knn_fit <- function(x_train, y_train, x_new, k) {
+  sapply(x_new, function(x0) mean(y_train[order(abs(x_train - x0))[1:k]]))
+}
+```
+
+To answer questions, open the .qmd, add your name, and edit as appropriate. Then render to .pdf.
+
+Write all mathematics in LaTeX so that it renders properly: `$...$` for inline expressions, `$$...$$` for displayed ones. Several questions ask for derivations, so render to .pdf before you submit. A LaTeX error will stop the file compiling, and an answer that does not compile cannot be marked.
+
+Submit by emailing your rendered .pdf to Georgy at gt298@cornell.edu.
+
+# Concepts
+
+Throughout this section, turnout $Y$ is generated as $Y = f(X) + \epsilon$, where $X$ is age, $\operatorname{E}[\epsilon \mid X] = 0$, and $\operatorname{Var}(\epsilon \mid X) = \sigma^2 = 49$. These questions need no code, but write out your answers and derivations in LaTeX in this .qmd.
+
+## Label each row below as an estimand, an estimator, or an estimate, and **bold** your answers. What distinguishes the second row from the third?
+
+| Object                                                              | Which is it? |
+|---------------------------------------------------------------------|--------------|
+| $f(50)$, turnout among all 50-year-olds                              | **?**        |
+| "average the turnout of the 25 observations nearest to age 50"       | **?**        |
+| $\hat{f}_{25}(50) = 68.2$                                            | **?**        |
+| $\beta^{\dagger}_1$, the age slope of the best linear predictor      | **?**        |
+| $0.60$, the age slope returned by `lm()` on our 200 observations     | **?**        |
+
+*Delete this line and replace it with your answer.*
+
+## Suppose you knew $f$. What is its expected test MSE at a given $x$? Why can no estimator do better, no matter how flexible it is or how much data it has?
+
+*Delete this line and replace it with your answer.*
+
+## The table below reports expected test MSE for four predictors of turnout, each fit on samples of $n = 200$ and evaluated on fresh draws from the same DGP. Fill in the missing cells and **bold** them. Which of the three columns depends on the predictor, and which on the DGP?
+
+| Predictor      | Reducible | Irreducible | Test MSE |
+|----------------|-----------|-------------|----------|
+| Intercept only | **?**     | 49          | 308.2    |
+| Linear         | 23.1      | 49          | **?**    |
+| Cubic          | **?**     | **?**       | 50.0     |
+| $f$ itself     | **?**     | 49          | **?**    |
+
+*Delete this line and replace it with your answer.*
+
+## The reducible error in the `Linear` row has two sources. Name both, using $f^{\star}$, $f^{\dagger}$ and $\hat{f}$ from Lecture 2. Which one survives as $n \to \infty$, and why?
+
+*Delete this line and replace it with your answer.*
+
+## Estimate $f$ by $k$-nearest neighbours instead. At a point $x_0$ the expected prediction error decomposes as below. Match each term to a quantity from 1.2 or 1.3. Why is the third term $\sigma^2 / k$ rather than $\sigma^2$?
+
+$$
+\operatorname{E}\!\left[\text{EPE}(x_0)\right] \;=\; \sigma^2 \;+\; \left[f(x_0) - \frac{1}{k}\sum_{\ell = 1}^{k} f(x_{(\ell)})\right]^2 \;+\; \frac{\sigma^2}{k}
+$$
+
+*Delete this line and replace it with your answer.*
+
+## What happens to each of the three terms as $k \to 1$, and as $k \to n$? Which row of the table in 1.3 does $k = n$ reproduce, and why?
+
+*Delete this line and replace it with your answer.*
+
+## Let $\hat{f}$ be the predictor that minimises training MSE in your sample. Why is $\operatorname{E}[\text{MSE}_{\text{train}}(\hat{f})] \leq \operatorname{E}[\text{EPE}(\hat{f})]$? What is $\text{MSE}_{\text{train}}$ at $k = 1$? Which $k$ would you pick if you chose $k$ by minimising training MSE?
+
+*Delete this line and replace it with your answer.*
+
+# Simulations
+
+The code below simulates data from a known DGP. Since we specify $f$, we can compute quantities that are unavailable with real data.
+
+```{r, echo = TRUE}
+set.seed(20260828)
+
+f     <- function(x) 55 - 12 * x^2
+sigma <- 4
+
+make_sample <- function(n) {
+  tibble(x = runif(n, min = -1, max = 1),
+         y = f(x) + rnorm(n, mean = 0, sd = sigma))
+}
+
+train <- make_sample(100)
+test  <- make_sample(10000)
+```
+
+## Identify $f$, $\epsilon$ and $\sigma^2$ in the code above. Plot the 100 training observations with the true regression function $f(x)$. Why is `test` drawn separately instead of reusing `train`?
+
+*Delete this line and replace it with your answer.*
+
+## Fit a linear regression $\hat{f}_{\mathrm{lin}}(x) = \hat\beta_0 + \hat\beta_1 x$ and a $k$-nearest-neighbours fit with $k = 10$, and add both to your plot. For each, compute the test MSE and the *oracle error* $\frac{1}{n_{\text{test}}}\sum_j \{f(x_j) - \hat{f}(x_j)\}^2$. Which of the two could you not compute with real data? Which column of the table in 1.3 does each correspond to, and what does their difference estimate?
+
+*Delete this line and replace it with your answer.*
+
+## Using `knn_fit()`, compute training and test MSE over the grid $k \in \{1, 2, 3, 5, 10, 15, 20, 30, 50, 75, 100\}$ and plot both curves against $k$ on a log scale. Report the $k$ that minimises test MSE, the training MSE at $k = 1$, and both values at $k = 100$. How do the last two relate to your answers in 1.6 and 1.7?
+
+*Delete this line and replace it with your answer.*
+
+## Draw 500 fresh training samples of $n = 100$, refit the linear regression on each, and plot the sampling distribution of the fitted slope $\hat\beta_1$. Report its mean and standard deviation.
+
+*Delete this line and replace it with your answer.*
+
+## Show analytically that $\beta^{\dagger}_1 = 0$ for this DGP. Which property of $f$, and which property of the distribution of $X$, does your proof use?
+
+*Delete this line and replace it with your answer.*
+
+## Your linear model reports a slope near zero, yet $X$ determines most of the variation in $Y$. Reconcile this using $f^{\star}$, $f^{\dagger}$ and $\hat{f}$ from 1.4. Compare the linear model's test MSE with that of an intercept-only model fit to the same training data, and explain why they are so close. What would a researcher who reported only $\hat\beta_1$ and its standard error conclude?
+
+*Delete this line and replace it with your answer.*
+
+# Replication
+
+Caroline Le Pennec and Vincent Pons, *[How Do Campaigns Shape Vote Choice? Multicountry Evidence from 62 Elections and 56 TV Debates](https://academic.oup.com/qje/article/138/2/703/7050900)*, **Quarterly Journal of Economics** 138(2), 2023, 703–767, combine two-round survey data from 62 elections in 10 countries. Each respondent states a vote intention before the election and reports an actual vote after it. This task reproduces the descriptive time pattern behind the paper's Figure 1, which shows how far ahead of an election voters have settled on the choice they eventually make. We do not reproduce the paper's full adjustment set or its event studies.
+
+`data/analysis_indiv_slim.dta` holds two variables from `Data/Analysis/analysis_indiv.dta` in the authors' [Harvard Dataverse archive](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/XMDFQO) (v1.1). No Stata installation or Dataverse download is needed.
+
+| Variable | Label | Role |
+|-----------|--------------------------------------------------|--------------------------------|
+| `int_act` | Consistency: stating a vote intention and identical vote declaration | Binary outcome $Y$ |
+| `dist_pre` | Number of days before election | Define $X = -\texttt{dist\_pre}$ |
+
+Throughout, keep observations with `int_act` nonmissing and `dist_pre` between 1 and 60, and work with $X = -\texttt{dist\_pre}$ so that $X$ runs from $-60$ to $-1$ and larger $X$ means closer to election day.
+
+## Read the data in with `haven::read_dta()`, apply the two filters above, and report your sample size. State the estimand $f(x)$ in words and in notation, and fill in the table below. Why is this estimand descriptive rather than causal?
+
+| Category           | Description |
+|--------------------|-------------|
+| Research question  |             |
+| Unit of analysis   |             |
+| $Y$                |             |
+| $X$                |             |
+| Estimand $f(x)$    |             |
+| Number of distinct values $X$ can take | |
+
+*Delete this line and replace it with your answer.*
+
+## Compute the mean of $Y$ within each of the 60 days and plot those daily means against $X$. Report the daily mean at $X = -60$ and at $X = -1$, and describe the pattern.
+
+*Delete this line and replace it with your answer.*
+
+## Split the observations into 75% training and 25% test using `set.seed(2026)`. Using the training data only, fit three estimators of $f$: a linear regression in $X$, a quadratic in $X$, and the daily-mean estimator $\hat{f}_{\text{day}}(x) = \sum_i \mathbf{1}(X_i = x) Y_i \big/ \sum_i \mathbf{1}(X_i = x)$. Plot all three over the daily means. How many free parameters does each have, and which of them are parametric?
+
+*Delete this line and replace it with your answer.*
+
+## Compute the test MSE of all three estimators on the held-out respondents. How much do they differ? Use the decomposition from 1.3 to explain what you find, and say which term dominates when $Y$ is binary at the respondent level.
+
+*Delete this line and replace it with your answer.*
+
+## Collapse the test set to its 60 daily means and recompute the test MSE of each estimator against those means rather than against individual respondents. Report the three numbers. Which estimator does best here, and what has aggregation done to the irreducible term?
+
+*Delete this line and replace it with your answer.*
+
+## Add $k$-nearest neighbours over the 60 daily cells for $k \in \{3, 5, 9, 15, 25\}$, using `knn_fit()` on the day-level means. Report the day-level test MSE for each $k$ and identify the minimising $k$. How does the shape of this curve compare with 2.3? Account for any difference in terms of how precisely each daily mean is estimated.
+
+*Delete this line and replace it with your answer.*
+
+## For every estimator you have fitted, report $\hat{f}(-1) - \hat{f}(-60)$, the estimated rise in consistency over the final 60 days. How much does this quantity depend on the estimator you chose? Given 3.4, could the respondent-level test MSE have told you which to trust? Explain why this is a partial replication, and why the time pattern alone does not show that campaigns *cause* voters to settle.
+
+*Delete this line and replace it with your answer.*
