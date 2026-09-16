@@ -441,6 +441,17 @@ Before the August 2006 Michigan primary, households were mailed a notice listing
 
 The study used four mailings, each making your turnout more visible to someone else than the last. That escalation carries the design's argument about mechanism, so the letters themselves are reproduced below.
 
+```{r mailings}
+#| include: false
+# Fetch the mailing scans if this .qmd was downloaded on its own.
+dir.create("images", showWarnings = FALSE)
+for (f in c("civic-duty.png", "hawthorne.png", "self.png", "neighbors.png"))
+  if (!file.exists(file.path("images", f)))
+    download.file(paste0("https://raw.githubusercontent.com/ddekadt/cornell-govt-6039/",
+                         "main/sections/section03/images/", f),
+                  file.path("images", f), mode = "wb")
+```
+
 ::: {.panel-tabset}
 
 ### Civic Duty
@@ -463,7 +474,6 @@ The study used four mailings, each making your turnout more visible to someone e
 
 ```{r arms}
 #| echo: false
-raw <- readRDS("data/social_slim.rds")   # our extract: control and neighbors only
 arms <- data.frame(
   mailing = c("Civic Duty", "Hawthorne", "Neighbors"),
   `what it reveals` = c("nothing", "researchers are watching",

@@ -9677,310 +9677,320 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb17-443"><a href="#cb17-443" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-444"><a href="#cb17-444" aria-hidden="true" tabindex="-1"></a>The study used four mailings, each making your turnout more visible to someone else than the last. That escalation carries the design&#39;s argument about mechanism, so the letters themselves are reproduced below.</span>
 <span id="cb17-445"><a href="#cb17-445" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-446"><a href="#cb17-446" aria-hidden="true" tabindex="-1"></a>::: {.panel-tabset}</span>
-<span id="cb17-447"><a href="#cb17-447" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-448"><a href="#cb17-448" aria-hidden="true" tabindex="-1"></a><span class="fu">### Civic Duty</span></span>
-<span id="cb17-449"><a href="#cb17-449" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-450"><a href="#cb17-450" aria-hidden="true" tabindex="-1"></a><span class="al">![The Civic Duty mailing: a pure appeal, with no observation of any kind.](images/civic-duty.png)</span></span>
-<span id="cb17-451"><a href="#cb17-451" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-452"><a href="#cb17-452" aria-hidden="true" tabindex="-1"></a><span class="fu">### Hawthorne</span></span>
-<span id="cb17-453"><a href="#cb17-453" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-454"><a href="#cb17-454" aria-hidden="true" tabindex="-1"></a><span class="al">![The Hawthorne mailing: you are told that researchers are watching, but your record stays private.](images/hawthorne.png)</span></span>
-<span id="cb17-455"><a href="#cb17-455" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-456"><a href="#cb17-456" aria-hidden="true" tabindex="-1"></a><span class="fu">### Self</span></span>
-<span id="cb17-457"><a href="#cb17-457" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-458"><a href="#cb17-458" aria-hidden="true" tabindex="-1"></a><span class="al">![The Self mailing: your own household&#39;s turnout record, with a blank box for the coming election.](images/self.png)</span></span>
-<span id="cb17-459"><a href="#cb17-459" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-460"><a href="#cb17-460" aria-hidden="true" tabindex="-1"></a><span class="fu">### Neighbors</span></span>
-<span id="cb17-461"><a href="#cb17-461" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-462"><a href="#cb17-462" aria-hidden="true" tabindex="-1"></a><span class="al">![The Neighbors mailing: your street&#39;s turnout records, and a promise to send everyone the updated chart. This is the treatment used below.](images/neighbors.png)</span></span>
-<span id="cb17-463"><a href="#cb17-463" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-464"><a href="#cb17-464" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb17-465"><a href="#cb17-465" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-466"><a href="#cb17-466" aria-hidden="true" tabindex="-1"></a><span class="in">```{r arms}</span></span>
-<span id="cb17-467"><a href="#cb17-467" aria-hidden="true" tabindex="-1"></a><span class="in">#| echo: false</span></span>
-<span id="cb17-468"><a href="#cb17-468" aria-hidden="true" tabindex="-1"></a><span class="in">raw &lt;- readRDS(&quot;data/social_slim.rds&quot;)   # our extract: control and neighbors only</span></span>
-<span id="cb17-469"><a href="#cb17-469" aria-hidden="true" tabindex="-1"></a><span class="in">arms &lt;- data.frame(</span></span>
-<span id="cb17-470"><a href="#cb17-470" aria-hidden="true" tabindex="-1"></a><span class="in">  mailing = c(&quot;Civic Duty&quot;, &quot;Hawthorne&quot;, &quot;Neighbors&quot;),</span></span>
-<span id="cb17-471"><a href="#cb17-471" aria-hidden="true" tabindex="-1"></a><span class="in">  `what it reveals` = c(&quot;nothing&quot;, &quot;researchers are watching&quot;,</span></span>
-<span id="cb17-472"><a href="#cb17-472" aria-hidden="true" tabindex="-1"></a><span class="in">                        &quot;your street sees your record&quot;),</span></span>
-<span id="cb17-473"><a href="#cb17-473" aria-hidden="true" tabindex="-1"></a><span class="in">  `effect on turnout` = c(0.0179, 0.0257, 0.0813),</span></span>
-<span id="cb17-474"><a href="#cb17-474" aria-hidden="true" tabindex="-1"></a><span class="in">  check.names = FALSE)</span></span>
-<span id="cb17-475"><a href="#cb17-475" aria-hidden="true" tabindex="-1"></a><span class="in">tbl(arms, digits = 4,</span></span>
-<span id="cb17-476"><a href="#cb17-476" aria-hidden="true" tabindex="-1"></a><span class="in">    caption = &quot;Effects against the control group, computed from the full four-arm file.&quot;)</span></span>
-<span id="cb17-477"><a href="#cb17-477" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-478"><a href="#cb17-478" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-479"><a href="#cb17-479" aria-hidden="true" tabindex="-1"></a>Turnout rises as the audience widens, from under two points when nobody is watching to eight when the neighbours are. That pattern is what supports calling the mechanism social pressure rather than information or reminder.</span>
-<span id="cb17-480"><a href="#cb17-480" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-481"><a href="#cb17-481" aria-hidden="true" tabindex="-1"></a>The paper also ran a **Self** condition, between Hawthorne and Neighbors, which is not in the copy of the data distributed with `qss`, so no effect is reported for it above. Everything after this point uses only **Control and Neighbors**, the widest contrast, which is why the estimand below is written for that comparison and not for the ladder as a whole.</span>
-<span id="cb17-482"><a href="#cb17-482" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-483"><a href="#cb17-483" aria-hidden="true" tabindex="-1"></a><span class="fu">## What the study is aiming at</span></span>
-<span id="cb17-484"><a href="#cb17-484" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-485"><a href="#cb17-485" aria-hidden="true" tabindex="-1"></a>Section 2 used <span class="co">[</span><span class="ot">Slough and Tyson&#39;s (2023)</span><span class="co">](https://doi.org/10.1111/ajps.12742)</span> decomposition of a study into $\mathcal{E} = <span class="sc">\{</span>m, (\omega&#39;, \omega&#39;&#39;), \theta<span class="sc">\}</span>$. Applying it here before touching an estimator:</span>
-<span id="cb17-486"><a href="#cb17-486" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-487"><a href="#cb17-487" aria-hidden="true" tabindex="-1"></a>| | |</span>
-<span id="cb17-488"><a href="#cb17-488" aria-hidden="true" tabindex="-1"></a>|---|---|</span>
-<span id="cb17-489"><a href="#cb17-489" aria-hidden="true" tabindex="-1"></a>| **Setting** $\theta$ | registered voters in Michigan households, in a low-salience August primary where baseline turnout is around 30% |</span>
-<span id="cb17-490"><a href="#cb17-490" aria-hidden="true" tabindex="-1"></a>| **Contrast** $(\omega&#39;, \omega&#39;&#39;)$ | the Neighbors mailing against no mailing |</span>
-<span id="cb17-491"><a href="#cb17-491" aria-hidden="true" tabindex="-1"></a>| **Measurement strategy** $m$ | turnout validated against the state voter file, not self-reported |</span>
-<span id="cb17-492"><a href="#cb17-492" aria-hidden="true" tabindex="-1"></a>| **Mechanism** | social pressure: the cost of having your abstention observed by people you live near |</span>
-<span id="cb17-493"><a href="#cb17-493" aria-hidden="true" tabindex="-1"></a>| **Empirical target** $\tau_m(\omega&#39;, \omega&#39;&#39; \mid \theta)$ | the average effect of the Neighbors mailing on validated turnout, over these voters in this election |</span>
+<span id="cb17-446"><a href="#cb17-446" aria-hidden="true" tabindex="-1"></a><span class="in">```{r mailings}</span></span>
+<span id="cb17-447"><a href="#cb17-447" aria-hidden="true" tabindex="-1"></a><span class="in">#| include: false</span></span>
+<span id="cb17-448"><a href="#cb17-448" aria-hidden="true" tabindex="-1"></a><span class="in"># Fetch the mailing scans if this .qmd was downloaded on its own.</span></span>
+<span id="cb17-449"><a href="#cb17-449" aria-hidden="true" tabindex="-1"></a><span class="in">dir.create(&quot;images&quot;, showWarnings = FALSE)</span></span>
+<span id="cb17-450"><a href="#cb17-450" aria-hidden="true" tabindex="-1"></a><span class="in">for (f in c(&quot;civic-duty.png&quot;, &quot;hawthorne.png&quot;, &quot;self.png&quot;, &quot;neighbors.png&quot;))</span></span>
+<span id="cb17-451"><a href="#cb17-451" aria-hidden="true" tabindex="-1"></a><span class="in">  if (!file.exists(file.path(&quot;images&quot;, f)))</span></span>
+<span id="cb17-452"><a href="#cb17-452" aria-hidden="true" tabindex="-1"></a><span class="in">    download.file(paste0(&quot;https://raw.githubusercontent.com/ddekadt/cornell-govt-6039/&quot;,</span></span>
+<span id="cb17-453"><a href="#cb17-453" aria-hidden="true" tabindex="-1"></a><span class="in">                         &quot;main/sections/section03/images/&quot;, f),</span></span>
+<span id="cb17-454"><a href="#cb17-454" aria-hidden="true" tabindex="-1"></a><span class="in">                  file.path(&quot;images&quot;, f), mode = &quot;wb&quot;)</span></span>
+<span id="cb17-455"><a href="#cb17-455" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-456"><a href="#cb17-456" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-457"><a href="#cb17-457" aria-hidden="true" tabindex="-1"></a>::: {.panel-tabset}</span>
+<span id="cb17-458"><a href="#cb17-458" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-459"><a href="#cb17-459" aria-hidden="true" tabindex="-1"></a><span class="fu">### Civic Duty</span></span>
+<span id="cb17-460"><a href="#cb17-460" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-461"><a href="#cb17-461" aria-hidden="true" tabindex="-1"></a><span class="al">![The Civic Duty mailing: a pure appeal, with no observation of any kind.](images/civic-duty.png)</span></span>
+<span id="cb17-462"><a href="#cb17-462" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-463"><a href="#cb17-463" aria-hidden="true" tabindex="-1"></a><span class="fu">### Hawthorne</span></span>
+<span id="cb17-464"><a href="#cb17-464" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-465"><a href="#cb17-465" aria-hidden="true" tabindex="-1"></a><span class="al">![The Hawthorne mailing: you are told that researchers are watching, but your record stays private.](images/hawthorne.png)</span></span>
+<span id="cb17-466"><a href="#cb17-466" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-467"><a href="#cb17-467" aria-hidden="true" tabindex="-1"></a><span class="fu">### Self</span></span>
+<span id="cb17-468"><a href="#cb17-468" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-469"><a href="#cb17-469" aria-hidden="true" tabindex="-1"></a><span class="al">![The Self mailing: your own household&#39;s turnout record, with a blank box for the coming election.](images/self.png)</span></span>
+<span id="cb17-470"><a href="#cb17-470" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-471"><a href="#cb17-471" aria-hidden="true" tabindex="-1"></a><span class="fu">### Neighbors</span></span>
+<span id="cb17-472"><a href="#cb17-472" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-473"><a href="#cb17-473" aria-hidden="true" tabindex="-1"></a><span class="al">![The Neighbors mailing: your street&#39;s turnout records, and a promise to send everyone the updated chart. This is the treatment used below.](images/neighbors.png)</span></span>
+<span id="cb17-474"><a href="#cb17-474" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-475"><a href="#cb17-475" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb17-476"><a href="#cb17-476" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-477"><a href="#cb17-477" aria-hidden="true" tabindex="-1"></a><span class="in">```{r arms}</span></span>
+<span id="cb17-478"><a href="#cb17-478" aria-hidden="true" tabindex="-1"></a><span class="in">#| echo: false</span></span>
+<span id="cb17-479"><a href="#cb17-479" aria-hidden="true" tabindex="-1"></a><span class="in">arms &lt;- data.frame(</span></span>
+<span id="cb17-480"><a href="#cb17-480" aria-hidden="true" tabindex="-1"></a><span class="in">  mailing = c(&quot;Civic Duty&quot;, &quot;Hawthorne&quot;, &quot;Neighbors&quot;),</span></span>
+<span id="cb17-481"><a href="#cb17-481" aria-hidden="true" tabindex="-1"></a><span class="in">  `what it reveals` = c(&quot;nothing&quot;, &quot;researchers are watching&quot;,</span></span>
+<span id="cb17-482"><a href="#cb17-482" aria-hidden="true" tabindex="-1"></a><span class="in">                        &quot;your street sees your record&quot;),</span></span>
+<span id="cb17-483"><a href="#cb17-483" aria-hidden="true" tabindex="-1"></a><span class="in">  `effect on turnout` = c(0.0179, 0.0257, 0.0813),</span></span>
+<span id="cb17-484"><a href="#cb17-484" aria-hidden="true" tabindex="-1"></a><span class="in">  check.names = FALSE)</span></span>
+<span id="cb17-485"><a href="#cb17-485" aria-hidden="true" tabindex="-1"></a><span class="in">tbl(arms, digits = 4,</span></span>
+<span id="cb17-486"><a href="#cb17-486" aria-hidden="true" tabindex="-1"></a><span class="in">    caption = &quot;Effects against the control group, computed from the full four-arm file.&quot;)</span></span>
+<span id="cb17-487"><a href="#cb17-487" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-488"><a href="#cb17-488" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-489"><a href="#cb17-489" aria-hidden="true" tabindex="-1"></a>Turnout rises as the audience widens, from under two points when nobody is watching to eight when the neighbours are. That pattern is what supports calling the mechanism social pressure rather than information or reminder.</span>
+<span id="cb17-490"><a href="#cb17-490" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-491"><a href="#cb17-491" aria-hidden="true" tabindex="-1"></a>The paper also ran a **Self** condition, between Hawthorne and Neighbors, which is not in the copy of the data distributed with `qss`, so no effect is reported for it above. Everything after this point uses only **Control and Neighbors**, the widest contrast, which is why the estimand below is written for that comparison and not for the ladder as a whole.</span>
+<span id="cb17-492"><a href="#cb17-492" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-493"><a href="#cb17-493" aria-hidden="true" tabindex="-1"></a><span class="fu">## What the study is aiming at</span></span>
 <span id="cb17-494"><a href="#cb17-494" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-495"><a href="#cb17-495" aria-hidden="true" tabindex="-1"></a>The reason to write this down first is the same as in section 2. The empirical target is fixed before any estimator is chosen. Everything we do below with penalties and dictionaries is a decision about *estimation*, and none of it changes what we are estimating.</span>
+<span id="cb17-495"><a href="#cb17-495" aria-hidden="true" tabindex="-1"></a>Section 2 used <span class="co">[</span><span class="ot">Slough and Tyson&#39;s (2023)</span><span class="co">](https://doi.org/10.1111/ajps.12742)</span> decomposition of a study into $\mathcal{E} = <span class="sc">\{</span>m, (\omega&#39;, \omega&#39;&#39;), \theta<span class="sc">\}</span>$. Applying it here before touching an estimator:</span>
 <span id="cb17-496"><a href="#cb17-496" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-497"><a href="#cb17-497" aria-hidden="true" tabindex="-1"></a><span class="fu">## Why the picture is different from Part 2</span></span>
-<span id="cb17-498"><a href="#cb17-498" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-501"><a href="#cb17-501" aria-hidden="true" tabindex="-1"></a><span class="in">```{mermaid}</span></span>
-<span id="cb17-502"><a href="#cb17-502" aria-hidden="true" tabindex="-1"></a><span class="in">%%| fig-cap: &quot;The experimental case. D has no parents, which is what randomisation looks like in a DAG.&quot;</span></span>
-<span id="cb17-503"><a href="#cb17-503" aria-hidden="true" tabindex="-1"></a><span class="in">flowchart LR</span></span>
-<span id="cb17-504"><a href="#cb17-504" aria-hidden="true" tabindex="-1"></a><span class="in">  X[&quot;X&lt;br/&gt;pre-treatment covariates&quot;] --&gt; Y[&quot;Y&lt;br/&gt;validated turnout&quot;]</span></span>
-<span id="cb17-505"><a href="#cb17-505" aria-hidden="true" tabindex="-1"></a><span class="in">  D[&quot;D&lt;br/&gt;Neighbors mailing&quot;] --&gt;|&quot;&amp;tau;&quot;| Y</span></span>
-<span id="cb17-506"><a href="#cb17-506" aria-hidden="true" tabindex="-1"></a><span class="in">  style D fill:#2a78d6,stroke:#1a5aa8,color:#fff</span></span>
-<span id="cb17-507"><a href="#cb17-507" aria-hidden="true" tabindex="-1"></a><span class="in">  style Y fill:#eb6834,stroke:#b8481f,color:#fff</span></span>
-<span id="cb17-508"><a href="#cb17-508" aria-hidden="true" tabindex="-1"></a><span class="in">  style X fill:#f4f4f2,stroke:#8a8a85,color:#0b0b0b</span></span>
-<span id="cb17-509"><a href="#cb17-509" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-510"><a href="#cb17-510" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-511"><a href="#cb17-511" aria-hidden="true" tabindex="-1"></a>:::{.callout-tip}</span>
-<span id="cb17-512"><a href="#cb17-512" aria-hidden="true" tabindex="-1"></a><span class="fu">## A note on the notation</span></span>
-<span id="cb17-513"><a href="#cb17-513" aria-hidden="true" tabindex="-1"></a>Randomisation is not drawn as a node. Nodes in a DAG are random variables, and randomisation is not one: it is a property of how $D$ was generated. It shows up in the graph as the **absence of any arrow into $D$**, so $D$ has no parents. If you ever see an assignment mechanism drawn as its own node with an arrow into treatment, the graph is saying something different from what the author means.</span>
-<span id="cb17-514"><a href="#cb17-514" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb17-515"><a href="#cb17-515" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-516"><a href="#cb17-516" aria-hidden="true" tabindex="-1"></a>The two diagrams differ in exactly one edge. In Part 2, $X \rightarrow D$ was present and the back-door path $D \leftarrow X \rightarrow Y$ had to be blocked. Here that edge is gone, because the experimenters assigned $D$. There is no back-door path left, so **no choice of covariates can bias $\hat\tau$, and none is needed to identify it**. $X$ still affects $Y$, which is the only reason to use it: conditioning on the part of $Y$ that $X$ explains reduces residual variance and therefore the standard error.</span>
-<span id="cb17-517"><a href="#cb17-517" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-518"><a href="#cb17-518" aria-hidden="true" tabindex="-1"></a>Part 2 was therefore about bias, and Part 3 is about precision.</span>
-<span id="cb17-519"><a href="#cb17-519" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-520"><a href="#cb17-520" aria-hidden="true" tabindex="-1"></a><span class="in">```{r part3-data}</span></span>
-<span id="cb17-521"><a href="#cb17-521" aria-hidden="true" tabindex="-1"></a><span class="in">base &lt;- paste0(&quot;https://raw.githubusercontent.com/ddekadt/&quot;,</span></span>
-<span id="cb17-522"><a href="#cb17-522" aria-hidden="true" tabindex="-1"></a><span class="in">               &quot;cornell-govt-6039/main/sections/section03/data/&quot;)</span></span>
-<span id="cb17-523"><a href="#cb17-523" aria-hidden="true" tabindex="-1"></a><span class="in">dir.create(&quot;data&quot;, showWarnings = FALSE)</span></span>
-<span id="cb17-524"><a href="#cb17-524" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-525"><a href="#cb17-525" aria-hidden="true" tabindex="-1"></a><span class="in"># Download once, then reuse the local copy on later renders.</span></span>
-<span id="cb17-526"><a href="#cb17-526" aria-hidden="true" tabindex="-1"></a><span class="in">if (!file.exists(&quot;data/social_slim.rds&quot;))</span></span>
-<span id="cb17-527"><a href="#cb17-527" aria-hidden="true" tabindex="-1"></a><span class="in">  download.file(paste0(base, &quot;social_slim.rds&quot;), &quot;data/social_slim.rds&quot;, mode = &quot;wb&quot;)</span></span>
-<span id="cb17-528"><a href="#cb17-528" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-529"><a href="#cb17-529" aria-hidden="true" tabindex="-1"></a><span class="in">d &lt;- readRDS(&quot;data/social_slim.rds&quot;)</span></span>
-<span id="cb17-530"><a href="#cb17-530" aria-hidden="true" tabindex="-1"></a><span class="in">nrow(d)</span></span>
-<span id="cb17-531"><a href="#cb17-531" aria-hidden="true" tabindex="-1"></a><span class="in">coef(summary(lm(voted ~ neighbors, data = d)))[2, 1:2] |&gt; round(5)</span></span>
-<span id="cb17-532"><a href="#cb17-532" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-533"><a href="#cb17-533" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-534"><a href="#cb17-534" aria-hidden="true" tabindex="-1"></a>That is the published result, about 8.1 percentage points, on 229,444 observations.</span>
-<span id="cb17-535"><a href="#cb17-535" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-536"><a href="#cb17-536" aria-hidden="true" tabindex="-1"></a>:::{.callout-warning}</span>
-<span id="cb17-537"><a href="#cb17-537" aria-hidden="true" tabindex="-1"></a><span class="fu">## One caveat about these standard errors</span></span>
-<span id="cb17-538"><a href="#cb17-538" aria-hidden="true" tabindex="-1"></a>GGL randomised **households**, not individuals, so the published analysis clusters by household. The extract we are using does not carry a household identifier, so nothing below is clustered and every standard error on this page is too small in absolute terms. It does not affect the comparison we are making, because all three estimators are understated by the same factor. Do not quote these standard errors as the paper&#39;s.</span>
-<span id="cb17-539"><a href="#cb17-539" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb17-540"><a href="#cb17-540" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-541"><a href="#cb17-541" aria-hidden="true" tabindex="-1"></a>**At this sample size you do not need any of this.** There are four pre-treatment covariates and a quarter of a million rows. Put them all in an OLS and stop. Penalization is a tool for the regime where $p$ is large relative to $n$.</span>
-<span id="cb17-542"><a href="#cb17-542" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-543"><a href="#cb17-543" aria-hidden="true" tabindex="-1"></a>That regime is easy to reach even with four covariates, because $p$ need not come from a data merge. Functional form alone will produce it.</span>
-<span id="cb17-544"><a href="#cb17-544" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-545"><a href="#cb17-545" aria-hidden="true" tabindex="-1"></a><span class="in">```{r part3-dictionary}</span></span>
-<span id="cb17-546"><a href="#cb17-546" aria-hidden="true" tabindex="-1"></a><span class="in">make_dictionary &lt;- function(df) {</span></span>
-<span id="cb17-547"><a href="#cb17-547" aria-hidden="true" tabindex="-1"></a><span class="in">  M &lt;- model.matrix(</span></span>
-<span id="cb17-548"><a href="#cb17-548" aria-hidden="true" tabindex="-1"></a><span class="in">    ~ (female + poly(age, 3, raw = TRUE) +</span></span>
-<span id="cb17-549"><a href="#cb17-549" aria-hidden="true" tabindex="-1"></a><span class="in">       factor(cut(age, c(-Inf, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, Inf))) +</span></span>
-<span id="cb17-550"><a href="#cb17-550" aria-hidden="true" tabindex="-1"></a><span class="in">       voted04 + factor(pmin(hhsize, 6)))^2,</span></span>
-<span id="cb17-551"><a href="#cb17-551" aria-hidden="true" tabindex="-1"></a><span class="in">    data = df)[, -1]</span></span>
-<span id="cb17-552"><a href="#cb17-552" aria-hidden="true" tabindex="-1"></a><span class="in">  M[, apply(M, 2, sd) &gt; 0, drop = FALSE]</span></span>
-<span id="cb17-553"><a href="#cb17-553" aria-hidden="true" tabindex="-1"></a><span class="in">}</span></span>
-<span id="cb17-554"><a href="#cb17-554" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-555"><a href="#cb17-555" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-556"><a href="#cb17-556" aria-hidden="true" tabindex="-1"></a>Age polynomials, age bins, household size as a factor, and every pairwise interaction. Four raw covariates become a dictionary of over a hundred columns, and which of them to keep is now a real question.</span>
-<span id="cb17-557"><a href="#cb17-557" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-558"><a href="#cb17-558" aria-hidden="true" tabindex="-1"></a>Most political science experiments have around a thousand subjects rather than 229,444. Draw subsamples of that size and compare three estimators.</span>
-<span id="cb17-559"><a href="#cb17-559" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-560"><a href="#cb17-560" aria-hidden="true" tabindex="-1"></a><span class="in">```{r part3-run}</span></span>
-<span id="cb17-561"><a href="#cb17-561" aria-hidden="true" tabindex="-1"></a><span class="in">one_sample &lt;- function(seed, n_sub = 1000) {</span></span>
-<span id="cb17-562"><a href="#cb17-562" aria-hidden="true" tabindex="-1"></a><span class="in">  set.seed(seed)</span></span>
-<span id="cb17-563"><a href="#cb17-563" aria-hidden="true" tabindex="-1"></a><span class="in">  s &lt;- d[sample(nrow(d), n_sub), ]</span></span>
-<span id="cb17-564"><a href="#cb17-564" aria-hidden="true" tabindex="-1"></a><span class="in">  X &lt;- make_dictionary(s); Y &lt;- s$voted; D &lt;- s$neighbors</span></span>
+<span id="cb17-497"><a href="#cb17-497" aria-hidden="true" tabindex="-1"></a>| | |</span>
+<span id="cb17-498"><a href="#cb17-498" aria-hidden="true" tabindex="-1"></a>|---|---|</span>
+<span id="cb17-499"><a href="#cb17-499" aria-hidden="true" tabindex="-1"></a>| **Setting** $\theta$ | registered voters in Michigan households, in a low-salience August primary where baseline turnout is around 30% |</span>
+<span id="cb17-500"><a href="#cb17-500" aria-hidden="true" tabindex="-1"></a>| **Contrast** $(\omega&#39;, \omega&#39;&#39;)$ | the Neighbors mailing against no mailing |</span>
+<span id="cb17-501"><a href="#cb17-501" aria-hidden="true" tabindex="-1"></a>| **Measurement strategy** $m$ | turnout validated against the state voter file, not self-reported |</span>
+<span id="cb17-502"><a href="#cb17-502" aria-hidden="true" tabindex="-1"></a>| **Mechanism** | social pressure: the cost of having your abstention observed by people you live near |</span>
+<span id="cb17-503"><a href="#cb17-503" aria-hidden="true" tabindex="-1"></a>| **Empirical target** $\tau_m(\omega&#39;, \omega&#39;&#39; \mid \theta)$ | the average effect of the Neighbors mailing on validated turnout, over these voters in this election |</span>
+<span id="cb17-504"><a href="#cb17-504" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-505"><a href="#cb17-505" aria-hidden="true" tabindex="-1"></a>The reason to write this down first is the same as in section 2. The empirical target is fixed before any estimator is chosen. Everything we do below with penalties and dictionaries is a decision about *estimation*, and none of it changes what we are estimating.</span>
+<span id="cb17-506"><a href="#cb17-506" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-507"><a href="#cb17-507" aria-hidden="true" tabindex="-1"></a><span class="fu">## Why the picture is different from Part 2</span></span>
+<span id="cb17-508"><a href="#cb17-508" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-511"><a href="#cb17-511" aria-hidden="true" tabindex="-1"></a><span class="in">```{mermaid}</span></span>
+<span id="cb17-512"><a href="#cb17-512" aria-hidden="true" tabindex="-1"></a><span class="in">%%| fig-cap: &quot;The experimental case. D has no parents, which is what randomisation looks like in a DAG.&quot;</span></span>
+<span id="cb17-513"><a href="#cb17-513" aria-hidden="true" tabindex="-1"></a><span class="in">flowchart LR</span></span>
+<span id="cb17-514"><a href="#cb17-514" aria-hidden="true" tabindex="-1"></a><span class="in">  X[&quot;X&lt;br/&gt;pre-treatment covariates&quot;] --&gt; Y[&quot;Y&lt;br/&gt;validated turnout&quot;]</span></span>
+<span id="cb17-515"><a href="#cb17-515" aria-hidden="true" tabindex="-1"></a><span class="in">  D[&quot;D&lt;br/&gt;Neighbors mailing&quot;] --&gt;|&quot;&amp;tau;&quot;| Y</span></span>
+<span id="cb17-516"><a href="#cb17-516" aria-hidden="true" tabindex="-1"></a><span class="in">  style D fill:#2a78d6,stroke:#1a5aa8,color:#fff</span></span>
+<span id="cb17-517"><a href="#cb17-517" aria-hidden="true" tabindex="-1"></a><span class="in">  style Y fill:#eb6834,stroke:#b8481f,color:#fff</span></span>
+<span id="cb17-518"><a href="#cb17-518" aria-hidden="true" tabindex="-1"></a><span class="in">  style X fill:#f4f4f2,stroke:#8a8a85,color:#0b0b0b</span></span>
+<span id="cb17-519"><a href="#cb17-519" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-520"><a href="#cb17-520" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-521"><a href="#cb17-521" aria-hidden="true" tabindex="-1"></a>:::{.callout-tip}</span>
+<span id="cb17-522"><a href="#cb17-522" aria-hidden="true" tabindex="-1"></a><span class="fu">## A note on the notation</span></span>
+<span id="cb17-523"><a href="#cb17-523" aria-hidden="true" tabindex="-1"></a>Randomisation is not drawn as a node. Nodes in a DAG are random variables, and randomisation is not one: it is a property of how $D$ was generated. It shows up in the graph as the **absence of any arrow into $D$**, so $D$ has no parents. If you ever see an assignment mechanism drawn as its own node with an arrow into treatment, the graph is saying something different from what the author means.</span>
+<span id="cb17-524"><a href="#cb17-524" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb17-525"><a href="#cb17-525" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-526"><a href="#cb17-526" aria-hidden="true" tabindex="-1"></a>The two diagrams differ in exactly one edge. In Part 2, $X \rightarrow D$ was present and the back-door path $D \leftarrow X \rightarrow Y$ had to be blocked. Here that edge is gone, because the experimenters assigned $D$. There is no back-door path left, so **no choice of covariates can bias $\hat\tau$, and none is needed to identify it**. $X$ still affects $Y$, which is the only reason to use it: conditioning on the part of $Y$ that $X$ explains reduces residual variance and therefore the standard error.</span>
+<span id="cb17-527"><a href="#cb17-527" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-528"><a href="#cb17-528" aria-hidden="true" tabindex="-1"></a>Part 2 was therefore about bias, and Part 3 is about precision.</span>
+<span id="cb17-529"><a href="#cb17-529" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-530"><a href="#cb17-530" aria-hidden="true" tabindex="-1"></a><span class="in">```{r part3-data}</span></span>
+<span id="cb17-531"><a href="#cb17-531" aria-hidden="true" tabindex="-1"></a><span class="in">base &lt;- paste0(&quot;https://raw.githubusercontent.com/ddekadt/&quot;,</span></span>
+<span id="cb17-532"><a href="#cb17-532" aria-hidden="true" tabindex="-1"></a><span class="in">               &quot;cornell-govt-6039/main/sections/section03/data/&quot;)</span></span>
+<span id="cb17-533"><a href="#cb17-533" aria-hidden="true" tabindex="-1"></a><span class="in">dir.create(&quot;data&quot;, showWarnings = FALSE)</span></span>
+<span id="cb17-534"><a href="#cb17-534" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-535"><a href="#cb17-535" aria-hidden="true" tabindex="-1"></a><span class="in"># Download once, then reuse the local copy on later renders.</span></span>
+<span id="cb17-536"><a href="#cb17-536" aria-hidden="true" tabindex="-1"></a><span class="in">if (!file.exists(&quot;data/social_slim.rds&quot;))</span></span>
+<span id="cb17-537"><a href="#cb17-537" aria-hidden="true" tabindex="-1"></a><span class="in">  download.file(paste0(base, &quot;social_slim.rds&quot;), &quot;data/social_slim.rds&quot;, mode = &quot;wb&quot;)</span></span>
+<span id="cb17-538"><a href="#cb17-538" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-539"><a href="#cb17-539" aria-hidden="true" tabindex="-1"></a><span class="in">d &lt;- readRDS(&quot;data/social_slim.rds&quot;)</span></span>
+<span id="cb17-540"><a href="#cb17-540" aria-hidden="true" tabindex="-1"></a><span class="in">nrow(d)</span></span>
+<span id="cb17-541"><a href="#cb17-541" aria-hidden="true" tabindex="-1"></a><span class="in">coef(summary(lm(voted ~ neighbors, data = d)))[2, 1:2] |&gt; round(5)</span></span>
+<span id="cb17-542"><a href="#cb17-542" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-543"><a href="#cb17-543" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-544"><a href="#cb17-544" aria-hidden="true" tabindex="-1"></a>That is the published result, about 8.1 percentage points, on 229,444 observations.</span>
+<span id="cb17-545"><a href="#cb17-545" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-546"><a href="#cb17-546" aria-hidden="true" tabindex="-1"></a>:::{.callout-warning}</span>
+<span id="cb17-547"><a href="#cb17-547" aria-hidden="true" tabindex="-1"></a><span class="fu">## One caveat about these standard errors</span></span>
+<span id="cb17-548"><a href="#cb17-548" aria-hidden="true" tabindex="-1"></a>GGL randomised **households**, not individuals, so the published analysis clusters by household. The extract we are using does not carry a household identifier, so nothing below is clustered and every standard error on this page is too small in absolute terms. It does not affect the comparison we are making, because all three estimators are understated by the same factor. Do not quote these standard errors as the paper&#39;s.</span>
+<span id="cb17-549"><a href="#cb17-549" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb17-550"><a href="#cb17-550" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-551"><a href="#cb17-551" aria-hidden="true" tabindex="-1"></a>**At this sample size you do not need any of this.** There are four pre-treatment covariates and a quarter of a million rows. Put them all in an OLS and stop. Penalization is a tool for the regime where $p$ is large relative to $n$.</span>
+<span id="cb17-552"><a href="#cb17-552" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-553"><a href="#cb17-553" aria-hidden="true" tabindex="-1"></a>That regime is easy to reach even with four covariates, because $p$ need not come from a data merge. Functional form alone will produce it.</span>
+<span id="cb17-554"><a href="#cb17-554" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-555"><a href="#cb17-555" aria-hidden="true" tabindex="-1"></a><span class="in">```{r part3-dictionary}</span></span>
+<span id="cb17-556"><a href="#cb17-556" aria-hidden="true" tabindex="-1"></a><span class="in">make_dictionary &lt;- function(df) {</span></span>
+<span id="cb17-557"><a href="#cb17-557" aria-hidden="true" tabindex="-1"></a><span class="in">  M &lt;- model.matrix(</span></span>
+<span id="cb17-558"><a href="#cb17-558" aria-hidden="true" tabindex="-1"></a><span class="in">    ~ (female + poly(age, 3, raw = TRUE) +</span></span>
+<span id="cb17-559"><a href="#cb17-559" aria-hidden="true" tabindex="-1"></a><span class="in">       factor(cut(age, c(-Inf, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, Inf))) +</span></span>
+<span id="cb17-560"><a href="#cb17-560" aria-hidden="true" tabindex="-1"></a><span class="in">       voted04 + factor(pmin(hhsize, 6)))^2,</span></span>
+<span id="cb17-561"><a href="#cb17-561" aria-hidden="true" tabindex="-1"></a><span class="in">    data = df)[, -1]</span></span>
+<span id="cb17-562"><a href="#cb17-562" aria-hidden="true" tabindex="-1"></a><span class="in">  M[, apply(M, 2, sd) &gt; 0, drop = FALSE]</span></span>
+<span id="cb17-563"><a href="#cb17-563" aria-hidden="true" tabindex="-1"></a><span class="in">}</span></span>
+<span id="cb17-564"><a href="#cb17-564" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 <span id="cb17-565"><a href="#cb17-565" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-566"><a href="#cb17-566" aria-hidden="true" tabindex="-1"></a><span class="in">  dim_ &lt;- coef(summary(lm(Y ~ D)))[2, 1:2]</span></span>
-<span id="cb17-567"><a href="#cb17-567" aria-hidden="true" tabindex="-1"></a><span class="in">  ols  &lt;- coef(summary(lm(Y ~ D + X)))[2, 1:2]</span></span>
-<span id="cb17-568"><a href="#cb17-568" aria-hidden="true" tabindex="-1"></a><span class="in">  u    &lt;- union(select(X, Y), select(X, D))</span></span>
-<span id="cb17-569"><a href="#cb17-569" aria-hidden="true" tabindex="-1"></a><span class="in">  pds  &lt;- if (length(u) == 0) dim_ else coef(summary(lm(Y ~ D + X[, u, drop = FALSE])))[2, 1:2]</span></span>
-<span id="cb17-570"><a href="#cb17-570" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-571"><a href="#cb17-571" aria-hidden="true" tabindex="-1"></a><span class="in">  setNames(c(unname(dim_), unname(ols), unname(pds), ncol(X), length(u)),</span></span>
-<span id="cb17-572"><a href="#cb17-572" aria-hidden="true" tabindex="-1"></a><span class="in">           c(&quot;dim&quot;, &quot;dim_se&quot;, &quot;ols&quot;, &quot;ols_se&quot;, &quot;pds&quot;, &quot;pds_se&quot;, &quot;p&quot;, &quot;k&quot;))</span></span>
-<span id="cb17-573"><a href="#cb17-573" aria-hidden="true" tabindex="-1"></a><span class="in">}</span></span>
-<span id="cb17-574"><a href="#cb17-574" aria-hidden="true" tabindex="-1"></a><span class="in">if (is.null(sims$part3)) {</span></span>
-<span id="cb17-575"><a href="#cb17-575" aria-hidden="true" tabindex="-1"></a><span class="in">  sims$part3 &lt;- t(sapply(1:40, one_sample))</span></span>
-<span id="cb17-576"><a href="#cb17-576" aria-hidden="true" tabindex="-1"></a><span class="in">  saveRDS(sims, sim_file)</span></span>
-<span id="cb17-577"><a href="#cb17-577" aria-hidden="true" tabindex="-1"></a><span class="in">}</span></span>
-<span id="cb17-578"><a href="#cb17-578" aria-hidden="true" tabindex="-1"></a><span class="in">S &lt;- sims$part3</span></span>
-<span id="cb17-579"><a href="#cb17-579" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-566"><a href="#cb17-566" aria-hidden="true" tabindex="-1"></a>Age polynomials, age bins, household size as a factor, and every pairwise interaction. Four raw covariates become a dictionary of over a hundred columns, and which of them to keep is now a real question.</span>
+<span id="cb17-567"><a href="#cb17-567" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-568"><a href="#cb17-568" aria-hidden="true" tabindex="-1"></a>Most political science experiments have around a thousand subjects rather than 229,444. Draw subsamples of that size and compare three estimators.</span>
+<span id="cb17-569"><a href="#cb17-569" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-570"><a href="#cb17-570" aria-hidden="true" tabindex="-1"></a><span class="in">```{r part3-run}</span></span>
+<span id="cb17-571"><a href="#cb17-571" aria-hidden="true" tabindex="-1"></a><span class="in">one_sample &lt;- function(seed, n_sub = 1000) {</span></span>
+<span id="cb17-572"><a href="#cb17-572" aria-hidden="true" tabindex="-1"></a><span class="in">  set.seed(seed)</span></span>
+<span id="cb17-573"><a href="#cb17-573" aria-hidden="true" tabindex="-1"></a><span class="in">  s &lt;- d[sample(nrow(d), n_sub), ]</span></span>
+<span id="cb17-574"><a href="#cb17-574" aria-hidden="true" tabindex="-1"></a><span class="in">  X &lt;- make_dictionary(s); Y &lt;- s$voted; D &lt;- s$neighbors</span></span>
+<span id="cb17-575"><a href="#cb17-575" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-576"><a href="#cb17-576" aria-hidden="true" tabindex="-1"></a><span class="in">  dim_ &lt;- coef(summary(lm(Y ~ D)))[2, 1:2]</span></span>
+<span id="cb17-577"><a href="#cb17-577" aria-hidden="true" tabindex="-1"></a><span class="in">  ols  &lt;- coef(summary(lm(Y ~ D + X)))[2, 1:2]</span></span>
+<span id="cb17-578"><a href="#cb17-578" aria-hidden="true" tabindex="-1"></a><span class="in">  u    &lt;- union(select(X, Y), select(X, D))</span></span>
+<span id="cb17-579"><a href="#cb17-579" aria-hidden="true" tabindex="-1"></a><span class="in">  pds  &lt;- if (length(u) == 0) dim_ else coef(summary(lm(Y ~ D + X[, u, drop = FALSE])))[2, 1:2]</span></span>
 <span id="cb17-580"><a href="#cb17-580" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-581"><a href="#cb17-581" aria-hidden="true" tabindex="-1"></a>::: {.panel-tabset}</span>
-<span id="cb17-582"><a href="#cb17-582" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-583"><a href="#cb17-583" aria-hidden="true" tabindex="-1"></a><span class="fu">## Precision</span></span>
-<span id="cb17-584"><a href="#cb17-584" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-585"><a href="#cb17-585" aria-hidden="true" tabindex="-1"></a><span class="in">```{r part3-plot}</span></span>
-<span id="cb17-586"><a href="#cb17-586" aria-hidden="true" tabindex="-1"></a><span class="in">#| echo: false</span></span>
-<span id="cb17-587"><a href="#cb17-587" aria-hidden="true" tabindex="-1"></a><span class="in">#| fig-height: 4.2</span></span>
-<span id="cb17-588"><a href="#cb17-588" aria-hidden="true" tabindex="-1"></a><span class="in">#| fig-cap: &quot;40 subsamples of 1,000. Dashed line is the full-sample benchmark.&quot;</span></span>
-<span id="cb17-589"><a href="#cb17-589" aria-hidden="true" tabindex="-1"></a><span class="in">bench &lt;- coef(lm(voted ~ neighbors, data = d))[2]</span></span>
-<span id="cb17-590"><a href="#cb17-590" aria-hidden="true" tabindex="-1"></a><span class="in">e3 &lt;- data.frame(</span></span>
-<span id="cb17-591"><a href="#cb17-591" aria-hidden="true" tabindex="-1"></a><span class="in">  value = c(S[,&quot;dim&quot;], S[,&quot;ols&quot;], S[,&quot;pds&quot;]),</span></span>
-<span id="cb17-592"><a href="#cb17-592" aria-hidden="true" tabindex="-1"></a><span class="in">  est = rep(c(&quot;difference in means&quot;, &quot;OLS, full dictionary&quot;, &quot;post-double-selection&quot;),</span></span>
-<span id="cb17-593"><a href="#cb17-593" aria-hidden="true" tabindex="-1"></a><span class="in">            each = nrow(S)))</span></span>
-<span id="cb17-594"><a href="#cb17-594" aria-hidden="true" tabindex="-1"></a><span class="in">e3$est &lt;- factor(e3$est, levels = rev(c(&quot;difference in means&quot;, &quot;OLS, full dictionary&quot;,</span></span>
-<span id="cb17-595"><a href="#cb17-595" aria-hidden="true" tabindex="-1"></a><span class="in">                                        &quot;post-double-selection&quot;)))</span></span>
-<span id="cb17-596"><a href="#cb17-596" aria-hidden="true" tabindex="-1"></a><span class="in">m3 &lt;- aggregate(value ~ est, e3, mean)</span></span>
-<span id="cb17-597"><a href="#cb17-597" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-598"><a href="#cb17-598" aria-hidden="true" tabindex="-1"></a><span class="in">ggplot(e3, aes(value, est)) +</span></span>
-<span id="cb17-599"><a href="#cb17-599" aria-hidden="true" tabindex="-1"></a><span class="in">  geom_vline(xintercept = bench, linetype = &quot;22&quot;, colour = ref, linewidth = 0.8) +</span></span>
-<span id="cb17-600"><a href="#cb17-600" aria-hidden="true" tabindex="-1"></a><span class="in">  annotate(&quot;text&quot;, x = bench, y = Inf, label = &quot;full sample = 0.081&quot;, colour = ref,</span></span>
-<span id="cb17-601"><a href="#cb17-601" aria-hidden="true" tabindex="-1"></a><span class="in">           size = 3.2, fontface = &quot;bold&quot;, hjust = -0.08, vjust = 1.6) +</span></span>
-<span id="cb17-602"><a href="#cb17-602" aria-hidden="true" tabindex="-1"></a><span class="in">  geom_point(aes(colour = est), alpha = 0.4, size = 1.7,</span></span>
-<span id="cb17-603"><a href="#cb17-603" aria-hidden="true" tabindex="-1"></a><span class="in">             position = position_jitter(height = 0.12, seed = 2)) +</span></span>
-<span id="cb17-604"><a href="#cb17-604" aria-hidden="true" tabindex="-1"></a><span class="in">  geom_point(data = m3, aes(value, est), size = 3.6, shape = 21,</span></span>
-<span id="cb17-605"><a href="#cb17-605" aria-hidden="true" tabindex="-1"></a><span class="in">             fill = &quot;white&quot;, colour = ink, stroke = 1.1) +</span></span>
-<span id="cb17-606"><a href="#cb17-606" aria-hidden="true" tabindex="-1"></a><span class="in">  scale_colour_manual(values = c(&quot;difference in means&quot; = unname(pal[&quot;blue&quot;]),</span></span>
-<span id="cb17-607"><a href="#cb17-607" aria-hidden="true" tabindex="-1"></a><span class="in">                                 &quot;OLS, full dictionary&quot; = unname(pal[&quot;orange&quot;]),</span></span>
-<span id="cb17-608"><a href="#cb17-608" aria-hidden="true" tabindex="-1"></a><span class="in">                                 &quot;post-double-selection&quot; = unname(pal[&quot;aqua&quot;]))) +</span></span>
-<span id="cb17-609"><a href="#cb17-609" aria-hidden="true" tabindex="-1"></a><span class="in">  coord_cartesian(clip = &quot;off&quot;) +</span></span>
-<span id="cb17-610"><a href="#cb17-610" aria-hidden="true" tabindex="-1"></a><span class="in">  labs(title = &quot;All three estimators land on the benchmark&quot;,</span></span>
-<span id="cb17-611"><a href="#cb17-611" aria-hidden="true" tabindex="-1"></a><span class="in">       subtitle = &quot;Estimated effect of the Neighbors mailing, 40 subsamples of 1,000. Precision is in the next tab.&quot;,</span></span>
-<span id="cb17-612"><a href="#cb17-612" aria-hidden="true" tabindex="-1"></a><span class="in">       x = &quot;estimated effect on turnout&quot;, y = NULL) +</span></span>
-<span id="cb17-613"><a href="#cb17-613" aria-hidden="true" tabindex="-1"></a><span class="in">  theme(plot.margin = margin(18, 12, 6, 6))</span></span>
-<span id="cb17-614"><a href="#cb17-614" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-615"><a href="#cb17-615" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-616"><a href="#cb17-616" aria-hidden="true" tabindex="-1"></a><span class="fu">## Standard errors</span></span>
-<span id="cb17-617"><a href="#cb17-617" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-618"><a href="#cb17-618" aria-hidden="true" tabindex="-1"></a><span class="in">```{r part3-se}</span></span>
-<span id="cb17-619"><a href="#cb17-619" aria-hidden="true" tabindex="-1"></a><span class="in">#| echo: false</span></span>
-<span id="cb17-620"><a href="#cb17-620" aria-hidden="true" tabindex="-1"></a><span class="in">#| fig-height: 3.4</span></span>
-<span id="cb17-621"><a href="#cb17-621" aria-hidden="true" tabindex="-1"></a><span class="in">#| fig-cap: &quot;Mean standard error. Lower is better.&quot;</span></span>
-<span id="cb17-622"><a href="#cb17-622" aria-hidden="true" tabindex="-1"></a><span class="in">se3 &lt;- data.frame(</span></span>
-<span id="cb17-623"><a href="#cb17-623" aria-hidden="true" tabindex="-1"></a><span class="in">  est = factor(c(&quot;difference in means&quot;, &quot;OLS, full dictionary&quot;, &quot;post-double-selection&quot;),</span></span>
-<span id="cb17-624"><a href="#cb17-624" aria-hidden="true" tabindex="-1"></a><span class="in">               levels = rev(c(&quot;difference in means&quot;, &quot;OLS, full dictionary&quot;, &quot;post-double-selection&quot;))),</span></span>
-<span id="cb17-625"><a href="#cb17-625" aria-hidden="true" tabindex="-1"></a><span class="in">  se = c(mean(S[,&quot;dim_se&quot;]), mean(S[,&quot;ols_se&quot;]), mean(S[,&quot;pds_se&quot;])))</span></span>
-<span id="cb17-626"><a href="#cb17-626" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-627"><a href="#cb17-627" aria-hidden="true" tabindex="-1"></a><span class="in">ggplot(se3, aes(se, est, fill = est)) +</span></span>
-<span id="cb17-628"><a href="#cb17-628" aria-hidden="true" tabindex="-1"></a><span class="in">  geom_col(width = 0.56) +</span></span>
-<span id="cb17-629"><a href="#cb17-629" aria-hidden="true" tabindex="-1"></a><span class="in">  geom_text(aes(label = sprintf(&quot;%.4f&quot;, se)), hjust = -0.15, size = 3.5,</span></span>
-<span id="cb17-630"><a href="#cb17-630" aria-hidden="true" tabindex="-1"></a><span class="in">            fontface = &quot;bold&quot;, colour = ink) +</span></span>
-<span id="cb17-631"><a href="#cb17-631" aria-hidden="true" tabindex="-1"></a><span class="in">  scale_fill_manual(values = c(&quot;difference in means&quot; = unname(pal[&quot;blue&quot;]),</span></span>
-<span id="cb17-632"><a href="#cb17-632" aria-hidden="true" tabindex="-1"></a><span class="in">                               &quot;OLS, full dictionary&quot; = unname(pal[&quot;orange&quot;]),</span></span>
-<span id="cb17-633"><a href="#cb17-633" aria-hidden="true" tabindex="-1"></a><span class="in">                               &quot;post-double-selection&quot; = unname(pal[&quot;aqua&quot;]))) +</span></span>
-<span id="cb17-634"><a href="#cb17-634" aria-hidden="true" tabindex="-1"></a><span class="in">  scale_x_continuous(limits = c(0, max(se3$se)*1.22), expand = c(0, 0)) +</span></span>
-<span id="cb17-635"><a href="#cb17-635" aria-hidden="true" tabindex="-1"></a><span class="in">  labs(title = &quot;Post-double-selection gives the smallest standard error of the three&quot;,</span></span>
-<span id="cb17-636"><a href="#cb17-636" aria-hidden="true" tabindex="-1"></a><span class="in">       subtitle = &quot;Same 40 subsamples of 1,000&quot;,</span></span>
-<span id="cb17-637"><a href="#cb17-637" aria-hidden="true" tabindex="-1"></a><span class="in">       x = &quot;mean standard error&quot;, y = NULL)</span></span>
-<span id="cb17-638"><a href="#cb17-638" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-639"><a href="#cb17-639" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-640"><a href="#cb17-640" aria-hidden="true" tabindex="-1"></a><span class="fu">## Table</span></span>
-<span id="cb17-641"><a href="#cb17-641" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-642"><a href="#cb17-642" aria-hidden="true" tabindex="-1"></a><span class="in">```{r part3-table}</span></span>
-<span id="cb17-643"><a href="#cb17-643" aria-hidden="true" tabindex="-1"></a><span class="in">#| echo: false</span></span>
-<span id="cb17-644"><a href="#cb17-644" aria-hidden="true" tabindex="-1"></a><span class="in">tbl(data.frame(</span></span>
-<span id="cb17-645"><a href="#cb17-645" aria-hidden="true" tabindex="-1"></a><span class="in">  estimator = c(&quot;difference in means&quot;, &quot;OLS, full dictionary&quot;, &quot;post-double-selection&quot;),</span></span>
-<span id="cb17-646"><a href="#cb17-646" aria-hidden="true" tabindex="-1"></a><span class="in">  `mean estimate` = c(mean(S[,&quot;dim&quot;]), mean(S[,&quot;ols&quot;]), mean(S[,&quot;pds&quot;])),</span></span>
-<span id="cb17-647"><a href="#cb17-647" aria-hidden="true" tabindex="-1"></a><span class="in">  `mean SE` = c(mean(S[,&quot;dim_se&quot;]), mean(S[,&quot;ols_se&quot;]), mean(S[,&quot;pds_se&quot;])),</span></span>
-<span id="cb17-648"><a href="#cb17-648" aria-hidden="true" tabindex="-1"></a><span class="in">  `columns used` = c(0, S[1,&quot;p&quot;], mean(S[,&quot;k&quot;])),</span></span>
-<span id="cb17-649"><a href="#cb17-649" aria-hidden="true" tabindex="-1"></a><span class="in">  check.names = FALSE),</span></span>
-<span id="cb17-650"><a href="#cb17-650" aria-hidden="true" tabindex="-1"></a><span class="in">  caption = sprintf(&quot;Dictionary has %d columns; PDS keeps %.1f on average.&quot;, S[1,&quot;p&quot;], mean(S[,&quot;k&quot;])))</span></span>
-<span id="cb17-651"><a href="#cb17-651" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb17-652"><a href="#cb17-652" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-653"><a href="#cb17-653" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb17-654"><a href="#cb17-654" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-655"><a href="#cb17-655" aria-hidden="true" tabindex="-1"></a>:::{.callout-note}</span>
-<span id="cb17-656"><a href="#cb17-656" aria-hidden="true" tabindex="-1"></a><span class="fu">## What to draw out</span></span>
-<span id="cb17-657"><a href="#cb17-657" aria-hidden="true" tabindex="-1"></a>All three point estimates are close to the full-sample benchmark of 0.081. With $D$ assigned at random there is no confounding, so none of these estimators is biased and the choice of covariates does not move the point estimate. Part 2 was a different situation.</span>
-<span id="cb17-658"><a href="#cb17-658" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-659"><a href="#cb17-659" aria-hidden="true" tabindex="-1"></a>What covariates buy here is precision. Throwing the whole dictionary into OLS produces a **larger** standard error than the raw difference in means, because it spends more than a hundred degrees of freedom on a thousand observations. PDS keeps about thirteen columns and gives the smallest standard error of the three.</span>
-<span id="cb17-660"><a href="#cb17-660" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-661"><a href="#cb17-661" aria-hidden="true" tabindex="-1"></a>The gain is real but modest, a few percent, and worth reporting as such. In an experiment covariate adjustment is a refinement. In the observational setting of Part 2, getting it wrong changed the answer.</span>
-<span id="cb17-662"><a href="#cb17-662" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb17-663"><a href="#cb17-663" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-664"><a href="#cb17-664" aria-hidden="true" tabindex="-1"></a><span class="fu"># Part 4: when to use this</span></span>
-<span id="cb17-665"><a href="#cb17-665" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-666"><a href="#cb17-666" aria-hidden="true" tabindex="-1"></a>**Use it when** $p$ is large relative to $n$ and you need a treatment effect; when your controls come from a wide battery, an administrative merge, or a flexible functional form; when you want covariate choice to be a rule rather than a series of decisions you made while looking at results.</span>
-<span id="cb17-667"><a href="#cb17-667" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-668"><a href="#cb17-668" aria-hidden="true" tabindex="-1"></a>**But $p$ can also be too large.** &quot;Large $p$&quot; is the case the lasso was built for, yet its guarantees are not unconditional. What has to be small is not $p$ itself but the sparsity $s$, the number of genuinely non-zero coefficients, relative to $n / \log p$. The standard consistency results require roughly</span>
-<span id="cb17-669"><a href="#cb17-669" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-670"><a href="#cb17-670" aria-hidden="true" tabindex="-1"></a>$$\frac{s \log p}{n} \longrightarrow 0,$$</span>
-<span id="cb17-671"><a href="#cb17-671" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-672"><a href="#cb17-672" aria-hidden="true" tabindex="-1"></a>so $p$ may be far larger than $n$, which is the whole point, while $s$ may not be large compared with $n/\log p$ (<span class="co">[</span><span class="ot">Bickel, Ritov and Tsybakov 2009</span><span class="co">](https://doi.org/10.1214/08-AOS620)</span>). Two consequences follow in practice. When $p &gt; n$ the lasso can select at most $n$ columns, whatever the truth looks like, which the lecture noted when motivating the elastic net. And if you believe the signal is spread thinly across many columns rather than concentrated in a few, the sparsity assumption is simply wrong and ridge or the elastic net will beat the lasso. That is exactly what the lecture&#39;s comparison table reports: the lasso wins there because the truth was built sparse.</span>
+<span id="cb17-581"><a href="#cb17-581" aria-hidden="true" tabindex="-1"></a><span class="in">  setNames(c(unname(dim_), unname(ols), unname(pds), ncol(X), length(u)),</span></span>
+<span id="cb17-582"><a href="#cb17-582" aria-hidden="true" tabindex="-1"></a><span class="in">           c(&quot;dim&quot;, &quot;dim_se&quot;, &quot;ols&quot;, &quot;ols_se&quot;, &quot;pds&quot;, &quot;pds_se&quot;, &quot;p&quot;, &quot;k&quot;))</span></span>
+<span id="cb17-583"><a href="#cb17-583" aria-hidden="true" tabindex="-1"></a><span class="in">}</span></span>
+<span id="cb17-584"><a href="#cb17-584" aria-hidden="true" tabindex="-1"></a><span class="in">if (is.null(sims$part3)) {</span></span>
+<span id="cb17-585"><a href="#cb17-585" aria-hidden="true" tabindex="-1"></a><span class="in">  sims$part3 &lt;- t(sapply(1:40, one_sample))</span></span>
+<span id="cb17-586"><a href="#cb17-586" aria-hidden="true" tabindex="-1"></a><span class="in">  saveRDS(sims, sim_file)</span></span>
+<span id="cb17-587"><a href="#cb17-587" aria-hidden="true" tabindex="-1"></a><span class="in">}</span></span>
+<span id="cb17-588"><a href="#cb17-588" aria-hidden="true" tabindex="-1"></a><span class="in">S &lt;- sims$part3</span></span>
+<span id="cb17-589"><a href="#cb17-589" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-590"><a href="#cb17-590" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-591"><a href="#cb17-591" aria-hidden="true" tabindex="-1"></a>::: {.panel-tabset}</span>
+<span id="cb17-592"><a href="#cb17-592" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-593"><a href="#cb17-593" aria-hidden="true" tabindex="-1"></a><span class="fu">## Precision</span></span>
+<span id="cb17-594"><a href="#cb17-594" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-595"><a href="#cb17-595" aria-hidden="true" tabindex="-1"></a><span class="in">```{r part3-plot}</span></span>
+<span id="cb17-596"><a href="#cb17-596" aria-hidden="true" tabindex="-1"></a><span class="in">#| echo: false</span></span>
+<span id="cb17-597"><a href="#cb17-597" aria-hidden="true" tabindex="-1"></a><span class="in">#| fig-height: 4.2</span></span>
+<span id="cb17-598"><a href="#cb17-598" aria-hidden="true" tabindex="-1"></a><span class="in">#| fig-cap: &quot;40 subsamples of 1,000. Dashed line is the full-sample benchmark.&quot;</span></span>
+<span id="cb17-599"><a href="#cb17-599" aria-hidden="true" tabindex="-1"></a><span class="in">bench &lt;- coef(lm(voted ~ neighbors, data = d))[2]</span></span>
+<span id="cb17-600"><a href="#cb17-600" aria-hidden="true" tabindex="-1"></a><span class="in">e3 &lt;- data.frame(</span></span>
+<span id="cb17-601"><a href="#cb17-601" aria-hidden="true" tabindex="-1"></a><span class="in">  value = c(S[,&quot;dim&quot;], S[,&quot;ols&quot;], S[,&quot;pds&quot;]),</span></span>
+<span id="cb17-602"><a href="#cb17-602" aria-hidden="true" tabindex="-1"></a><span class="in">  est = rep(c(&quot;difference in means&quot;, &quot;OLS, full dictionary&quot;, &quot;post-double-selection&quot;),</span></span>
+<span id="cb17-603"><a href="#cb17-603" aria-hidden="true" tabindex="-1"></a><span class="in">            each = nrow(S)))</span></span>
+<span id="cb17-604"><a href="#cb17-604" aria-hidden="true" tabindex="-1"></a><span class="in">e3$est &lt;- factor(e3$est, levels = rev(c(&quot;difference in means&quot;, &quot;OLS, full dictionary&quot;,</span></span>
+<span id="cb17-605"><a href="#cb17-605" aria-hidden="true" tabindex="-1"></a><span class="in">                                        &quot;post-double-selection&quot;)))</span></span>
+<span id="cb17-606"><a href="#cb17-606" aria-hidden="true" tabindex="-1"></a><span class="in">m3 &lt;- aggregate(value ~ est, e3, mean)</span></span>
+<span id="cb17-607"><a href="#cb17-607" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-608"><a href="#cb17-608" aria-hidden="true" tabindex="-1"></a><span class="in">ggplot(e3, aes(value, est)) +</span></span>
+<span id="cb17-609"><a href="#cb17-609" aria-hidden="true" tabindex="-1"></a><span class="in">  geom_vline(xintercept = bench, linetype = &quot;22&quot;, colour = ref, linewidth = 0.8) +</span></span>
+<span id="cb17-610"><a href="#cb17-610" aria-hidden="true" tabindex="-1"></a><span class="in">  annotate(&quot;text&quot;, x = bench, y = Inf, label = &quot;full sample = 0.081&quot;, colour = ref,</span></span>
+<span id="cb17-611"><a href="#cb17-611" aria-hidden="true" tabindex="-1"></a><span class="in">           size = 3.2, fontface = &quot;bold&quot;, hjust = -0.08, vjust = 1.6) +</span></span>
+<span id="cb17-612"><a href="#cb17-612" aria-hidden="true" tabindex="-1"></a><span class="in">  geom_point(aes(colour = est), alpha = 0.4, size = 1.7,</span></span>
+<span id="cb17-613"><a href="#cb17-613" aria-hidden="true" tabindex="-1"></a><span class="in">             position = position_jitter(height = 0.12, seed = 2)) +</span></span>
+<span id="cb17-614"><a href="#cb17-614" aria-hidden="true" tabindex="-1"></a><span class="in">  geom_point(data = m3, aes(value, est), size = 3.6, shape = 21,</span></span>
+<span id="cb17-615"><a href="#cb17-615" aria-hidden="true" tabindex="-1"></a><span class="in">             fill = &quot;white&quot;, colour = ink, stroke = 1.1) +</span></span>
+<span id="cb17-616"><a href="#cb17-616" aria-hidden="true" tabindex="-1"></a><span class="in">  scale_colour_manual(values = c(&quot;difference in means&quot; = unname(pal[&quot;blue&quot;]),</span></span>
+<span id="cb17-617"><a href="#cb17-617" aria-hidden="true" tabindex="-1"></a><span class="in">                                 &quot;OLS, full dictionary&quot; = unname(pal[&quot;orange&quot;]),</span></span>
+<span id="cb17-618"><a href="#cb17-618" aria-hidden="true" tabindex="-1"></a><span class="in">                                 &quot;post-double-selection&quot; = unname(pal[&quot;aqua&quot;]))) +</span></span>
+<span id="cb17-619"><a href="#cb17-619" aria-hidden="true" tabindex="-1"></a><span class="in">  coord_cartesian(clip = &quot;off&quot;) +</span></span>
+<span id="cb17-620"><a href="#cb17-620" aria-hidden="true" tabindex="-1"></a><span class="in">  labs(title = &quot;All three estimators land on the benchmark&quot;,</span></span>
+<span id="cb17-621"><a href="#cb17-621" aria-hidden="true" tabindex="-1"></a><span class="in">       subtitle = &quot;Estimated effect of the Neighbors mailing, 40 subsamples of 1,000. Precision is in the next tab.&quot;,</span></span>
+<span id="cb17-622"><a href="#cb17-622" aria-hidden="true" tabindex="-1"></a><span class="in">       x = &quot;estimated effect on turnout&quot;, y = NULL) +</span></span>
+<span id="cb17-623"><a href="#cb17-623" aria-hidden="true" tabindex="-1"></a><span class="in">  theme(plot.margin = margin(18, 12, 6, 6))</span></span>
+<span id="cb17-624"><a href="#cb17-624" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-625"><a href="#cb17-625" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-626"><a href="#cb17-626" aria-hidden="true" tabindex="-1"></a><span class="fu">## Standard errors</span></span>
+<span id="cb17-627"><a href="#cb17-627" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-628"><a href="#cb17-628" aria-hidden="true" tabindex="-1"></a><span class="in">```{r part3-se}</span></span>
+<span id="cb17-629"><a href="#cb17-629" aria-hidden="true" tabindex="-1"></a><span class="in">#| echo: false</span></span>
+<span id="cb17-630"><a href="#cb17-630" aria-hidden="true" tabindex="-1"></a><span class="in">#| fig-height: 3.4</span></span>
+<span id="cb17-631"><a href="#cb17-631" aria-hidden="true" tabindex="-1"></a><span class="in">#| fig-cap: &quot;Mean standard error. Lower is better.&quot;</span></span>
+<span id="cb17-632"><a href="#cb17-632" aria-hidden="true" tabindex="-1"></a><span class="in">se3 &lt;- data.frame(</span></span>
+<span id="cb17-633"><a href="#cb17-633" aria-hidden="true" tabindex="-1"></a><span class="in">  est = factor(c(&quot;difference in means&quot;, &quot;OLS, full dictionary&quot;, &quot;post-double-selection&quot;),</span></span>
+<span id="cb17-634"><a href="#cb17-634" aria-hidden="true" tabindex="-1"></a><span class="in">               levels = rev(c(&quot;difference in means&quot;, &quot;OLS, full dictionary&quot;, &quot;post-double-selection&quot;))),</span></span>
+<span id="cb17-635"><a href="#cb17-635" aria-hidden="true" tabindex="-1"></a><span class="in">  se = c(mean(S[,&quot;dim_se&quot;]), mean(S[,&quot;ols_se&quot;]), mean(S[,&quot;pds_se&quot;])))</span></span>
+<span id="cb17-636"><a href="#cb17-636" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-637"><a href="#cb17-637" aria-hidden="true" tabindex="-1"></a><span class="in">ggplot(se3, aes(se, est, fill = est)) +</span></span>
+<span id="cb17-638"><a href="#cb17-638" aria-hidden="true" tabindex="-1"></a><span class="in">  geom_col(width = 0.56) +</span></span>
+<span id="cb17-639"><a href="#cb17-639" aria-hidden="true" tabindex="-1"></a><span class="in">  geom_text(aes(label = sprintf(&quot;%.4f&quot;, se)), hjust = -0.15, size = 3.5,</span></span>
+<span id="cb17-640"><a href="#cb17-640" aria-hidden="true" tabindex="-1"></a><span class="in">            fontface = &quot;bold&quot;, colour = ink) +</span></span>
+<span id="cb17-641"><a href="#cb17-641" aria-hidden="true" tabindex="-1"></a><span class="in">  scale_fill_manual(values = c(&quot;difference in means&quot; = unname(pal[&quot;blue&quot;]),</span></span>
+<span id="cb17-642"><a href="#cb17-642" aria-hidden="true" tabindex="-1"></a><span class="in">                               &quot;OLS, full dictionary&quot; = unname(pal[&quot;orange&quot;]),</span></span>
+<span id="cb17-643"><a href="#cb17-643" aria-hidden="true" tabindex="-1"></a><span class="in">                               &quot;post-double-selection&quot; = unname(pal[&quot;aqua&quot;]))) +</span></span>
+<span id="cb17-644"><a href="#cb17-644" aria-hidden="true" tabindex="-1"></a><span class="in">  scale_x_continuous(limits = c(0, max(se3$se)*1.22), expand = c(0, 0)) +</span></span>
+<span id="cb17-645"><a href="#cb17-645" aria-hidden="true" tabindex="-1"></a><span class="in">  labs(title = &quot;Post-double-selection gives the smallest standard error of the three&quot;,</span></span>
+<span id="cb17-646"><a href="#cb17-646" aria-hidden="true" tabindex="-1"></a><span class="in">       subtitle = &quot;Same 40 subsamples of 1,000&quot;,</span></span>
+<span id="cb17-647"><a href="#cb17-647" aria-hidden="true" tabindex="-1"></a><span class="in">       x = &quot;mean standard error&quot;, y = NULL)</span></span>
+<span id="cb17-648"><a href="#cb17-648" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-649"><a href="#cb17-649" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-650"><a href="#cb17-650" aria-hidden="true" tabindex="-1"></a><span class="fu">## Table</span></span>
+<span id="cb17-651"><a href="#cb17-651" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-652"><a href="#cb17-652" aria-hidden="true" tabindex="-1"></a><span class="in">```{r part3-table}</span></span>
+<span id="cb17-653"><a href="#cb17-653" aria-hidden="true" tabindex="-1"></a><span class="in">#| echo: false</span></span>
+<span id="cb17-654"><a href="#cb17-654" aria-hidden="true" tabindex="-1"></a><span class="in">tbl(data.frame(</span></span>
+<span id="cb17-655"><a href="#cb17-655" aria-hidden="true" tabindex="-1"></a><span class="in">  estimator = c(&quot;difference in means&quot;, &quot;OLS, full dictionary&quot;, &quot;post-double-selection&quot;),</span></span>
+<span id="cb17-656"><a href="#cb17-656" aria-hidden="true" tabindex="-1"></a><span class="in">  `mean estimate` = c(mean(S[,&quot;dim&quot;]), mean(S[,&quot;ols&quot;]), mean(S[,&quot;pds&quot;])),</span></span>
+<span id="cb17-657"><a href="#cb17-657" aria-hidden="true" tabindex="-1"></a><span class="in">  `mean SE` = c(mean(S[,&quot;dim_se&quot;]), mean(S[,&quot;ols_se&quot;]), mean(S[,&quot;pds_se&quot;])),</span></span>
+<span id="cb17-658"><a href="#cb17-658" aria-hidden="true" tabindex="-1"></a><span class="in">  `columns used` = c(0, S[1,&quot;p&quot;], mean(S[,&quot;k&quot;])),</span></span>
+<span id="cb17-659"><a href="#cb17-659" aria-hidden="true" tabindex="-1"></a><span class="in">  check.names = FALSE),</span></span>
+<span id="cb17-660"><a href="#cb17-660" aria-hidden="true" tabindex="-1"></a><span class="in">  caption = sprintf(&quot;Dictionary has %d columns; PDS keeps %.1f on average.&quot;, S[1,&quot;p&quot;], mean(S[,&quot;k&quot;])))</span></span>
+<span id="cb17-661"><a href="#cb17-661" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb17-662"><a href="#cb17-662" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-663"><a href="#cb17-663" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb17-664"><a href="#cb17-664" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-665"><a href="#cb17-665" aria-hidden="true" tabindex="-1"></a>:::{.callout-note}</span>
+<span id="cb17-666"><a href="#cb17-666" aria-hidden="true" tabindex="-1"></a><span class="fu">## What to draw out</span></span>
+<span id="cb17-667"><a href="#cb17-667" aria-hidden="true" tabindex="-1"></a>All three point estimates are close to the full-sample benchmark of 0.081. With $D$ assigned at random there is no confounding, so none of these estimators is biased and the choice of covariates does not move the point estimate. Part 2 was a different situation.</span>
+<span id="cb17-668"><a href="#cb17-668" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-669"><a href="#cb17-669" aria-hidden="true" tabindex="-1"></a>What covariates buy here is precision. Throwing the whole dictionary into OLS produces a **larger** standard error than the raw difference in means, because it spends more than a hundred degrees of freedom on a thousand observations. PDS keeps about thirteen columns and gives the smallest standard error of the three.</span>
+<span id="cb17-670"><a href="#cb17-670" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-671"><a href="#cb17-671" aria-hidden="true" tabindex="-1"></a>The gain is real but modest, a few percent, and worth reporting as such. In an experiment covariate adjustment is a refinement. In the observational setting of Part 2, getting it wrong changed the answer.</span>
+<span id="cb17-672"><a href="#cb17-672" aria-hidden="true" tabindex="-1"></a>:::</span>
 <span id="cb17-673"><a href="#cb17-673" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-674"><a href="#cb17-674" aria-hidden="true" tabindex="-1"></a>There is a second tradition that picks $\lambda$ from theory rather than by cross-validation, and it runs into an awkward problem: the theoretically correct penalty depends on the noise scale $\sigma$, which you do not know. <span class="co">[</span><span class="ot">Square-root lasso</span><span class="co">](#appendix-square-root-lasso-when-you-do-not-know-how-noisy-y-is)</span> removes that dependence. The appendix explains how, and sets an optional exercise.</span>
+<span id="cb17-674"><a href="#cb17-674" aria-hidden="true" tabindex="-1"></a><span class="fu"># Part 4: when to use this</span></span>
 <span id="cb17-675"><a href="#cb17-675" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-676"><a href="#cb17-676" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-677"><a href="#cb17-677" aria-hidden="true" tabindex="-1"></a>**Do not use it when** $n$ greatly exceeds $p$ and OLS with all controls is fine, which was the full GGL sample. Do not use it on post-treatment variables: penalization does not protect you from conditioning on a collider, and no amount of cross-validation will tell you that you have.</span>
-<span id="cb17-678"><a href="#cb17-678" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-679"><a href="#cb17-679" aria-hidden="true" tabindex="-1"></a>**Three cautions.**</span>
-<span id="cb17-680"><a href="#cb17-680" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-681"><a href="#cb17-681" aria-hidden="true" tabindex="-1"></a>Never penalize the treatment. Part 1 is what happens to a coefficient inside the penalty.</span>
-<span id="cb17-682"><a href="#cb17-682" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-683"><a href="#cb17-683" aria-hidden="true" tabindex="-1"></a>Standard errors after selection are not valid in the ordinary way. The usual OLS standard errors on the refit are the reason PDS exists: it is constructed so that they are approximately right for $\hat\tau$. Do not report conventional standard errors on the *selected control* coefficients, and do not read the selected set as a finding about which covariates matter. <span class="co">[</span><span class="ot">Lockhart, Taylor, Tibshirani and Tibshirani (2014)</span><span class="co">](https://doi.org/10.1214/13-AOS1175)</span>, on the lecture&#39;s reference slide, is where this literature starts.</span>
-<span id="cb17-684"><a href="#cb17-684" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-685"><a href="#cb17-685" aria-hidden="true" tabindex="-1"></a>The lasso picks arbitrarily among correlated columns. For controls this is harmless, since what you want is their combined predictive content and not their identity. For interpretation it is a serious problem. If a seminar question is &quot;why did it select county income and not county education&quot;, the answer is that they were correlated and the lasso chose one.</span>
+<span id="cb17-676"><a href="#cb17-676" aria-hidden="true" tabindex="-1"></a>**Use it when** $p$ is large relative to $n$ and you need a treatment effect; when your controls come from a wide battery, an administrative merge, or a flexible functional form; when you want covariate choice to be a rule rather than a series of decisions you made while looking at results.</span>
+<span id="cb17-677"><a href="#cb17-677" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-678"><a href="#cb17-678" aria-hidden="true" tabindex="-1"></a>**But $p$ can also be too large.** &quot;Large $p$&quot; is the case the lasso was built for, yet its guarantees are not unconditional. What has to be small is not $p$ itself but the sparsity $s$, the number of genuinely non-zero coefficients, relative to $n / \log p$. The standard consistency results require roughly</span>
+<span id="cb17-679"><a href="#cb17-679" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-680"><a href="#cb17-680" aria-hidden="true" tabindex="-1"></a>$$\frac{s \log p}{n} \longrightarrow 0,$$</span>
+<span id="cb17-681"><a href="#cb17-681" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-682"><a href="#cb17-682" aria-hidden="true" tabindex="-1"></a>so $p$ may be far larger than $n$, which is the whole point, while $s$ may not be large compared with $n/\log p$ (<span class="co">[</span><span class="ot">Bickel, Ritov and Tsybakov 2009</span><span class="co">](https://doi.org/10.1214/08-AOS620)</span>). Two consequences follow in practice. When $p &gt; n$ the lasso can select at most $n$ columns, whatever the truth looks like, which the lecture noted when motivating the elastic net. And if you believe the signal is spread thinly across many columns rather than concentrated in a few, the sparsity assumption is simply wrong and ridge or the elastic net will beat the lasso. That is exactly what the lecture&#39;s comparison table reports: the lasso wins there because the truth was built sparse.</span>
+<span id="cb17-683"><a href="#cb17-683" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-684"><a href="#cb17-684" aria-hidden="true" tabindex="-1"></a>There is a second tradition that picks $\lambda$ from theory rather than by cross-validation, and it runs into an awkward problem: the theoretically correct penalty depends on the noise scale $\sigma$, which you do not know. <span class="co">[</span><span class="ot">Square-root lasso</span><span class="co">](#appendix-square-root-lasso-when-you-do-not-know-how-noisy-y-is)</span> removes that dependence. The appendix explains how, and sets an optional exercise.</span>
+<span id="cb17-685"><a href="#cb17-685" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-686"><a href="#cb17-686" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-687"><a href="#cb17-687" aria-hidden="true" tabindex="-1"></a><span class="fu"># Exercise for today</span></span>
+<span id="cb17-687"><a href="#cb17-687" aria-hidden="true" tabindex="-1"></a>**Do not use it when** $n$ greatly exceeds $p$ and OLS with all controls is fine, which was the full GGL sample. Do not use it on post-treatment variables: penalization does not protect you from conditioning on a collider, and no amount of cross-validation will tell you that you have.</span>
 <span id="cb17-688"><a href="#cb17-688" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-689"><a href="#cb17-689" aria-hidden="true" tabindex="-1"></a>Re-run Part 2 with <span class="in">`b_conf &lt;- 1.5`</span>, so the confounders strongly predict the outcome. Does the naive estimator&#39;s bias survive? Explain the result in terms of which lasso is doing the work.</span>
+<span id="cb17-689"><a href="#cb17-689" aria-hidden="true" tabindex="-1"></a>**Three cautions.**</span>
 <span id="cb17-690"><a href="#cb17-690" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-691"><a href="#cb17-691" aria-hidden="true" tabindex="-1"></a><span class="fu"># Appendix: square-root lasso, when you do not know how noisy $Y$ is</span></span>
+<span id="cb17-691"><a href="#cb17-691" aria-hidden="true" tabindex="-1"></a>Never penalize the treatment. Part 1 is what happens to a coefficient inside the penalty.</span>
 <span id="cb17-692"><a href="#cb17-692" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-693"><a href="#cb17-693" aria-hidden="true" tabindex="-1"></a>Everything above tuned $\lambda$ by cross-validation, which treats it as a prediction hyperparameter. There is a second tradition that picks $\lambda$ from theory instead, and it runs into a problem worth understanding.</span>
+<span id="cb17-693"><a href="#cb17-693" aria-hidden="true" tabindex="-1"></a>Standard errors after selection are not valid in the ordinary way. The usual OLS standard errors on the refit are the reason PDS exists: it is constructed so that they are approximately right for $\hat\tau$. Do not report conventional standard errors on the *selected control* coefficients, and do not read the selected set as a finding about which covariates matter. <span class="co">[</span><span class="ot">Lockhart, Taylor, Tibshirani and Tibshirani (2014)</span><span class="co">](https://doi.org/10.1214/13-AOS1175)</span>, on the lecture&#39;s reference slide, is where this literature starts.</span>
 <span id="cb17-694"><a href="#cb17-694" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-695"><a href="#cb17-695" aria-hidden="true" tabindex="-1"></a>The penalty level that the theory justifies for the ordinary lasso,</span>
+<span id="cb17-695"><a href="#cb17-695" aria-hidden="true" tabindex="-1"></a>The lasso picks arbitrarily among correlated columns. For controls this is harmless, since what you want is their combined predictive content and not their identity. For interpretation it is a serious problem. If a seminar question is &quot;why did it select county income and not county education&quot;, the answer is that they were correlated and the lasso chose one.</span>
 <span id="cb17-696"><a href="#cb17-696" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-697"><a href="#cb17-697" aria-hidden="true" tabindex="-1"></a>$$\hat\beta = \arg\min_\beta \left<span class="sc">\{</span> \tfrac{1}{2n}\lVert Y - X\beta \rVert_2^2 + \lambda \lVert \beta \rVert_1 \right<span class="sc">\}</span>,$$</span>
+<span id="cb17-697"><a href="#cb17-697" aria-hidden="true" tabindex="-1"></a><span class="fu"># Exercise for today</span></span>
 <span id="cb17-698"><a href="#cb17-698" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-699"><a href="#cb17-699" aria-hidden="true" tabindex="-1"></a>scales as</span>
+<span id="cb17-699"><a href="#cb17-699" aria-hidden="true" tabindex="-1"></a>Re-run Part 2 with <span class="in">`b_conf &lt;- 1.5`</span>, so the confounders strongly predict the outcome. Does the naive estimator&#39;s bias survive? Explain the result in terms of which lasso is doing the work.</span>
 <span id="cb17-700"><a href="#cb17-700" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-701"><a href="#cb17-701" aria-hidden="true" tabindex="-1"></a>$$\lambda \asymp \sigma \sqrt{\frac{\log p}{n}}.$$</span>
+<span id="cb17-701"><a href="#cb17-701" aria-hidden="true" tabindex="-1"></a><span class="fu"># Appendix: square-root lasso, when you do not know how noisy $Y$ is</span></span>
 <span id="cb17-702"><a href="#cb17-702" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-703"><a href="#cb17-703" aria-hidden="true" tabindex="-1"></a>It depends on $\sigma$, the standard deviation of the regression errors, which you do not know. You are left estimating $\sigma$ before you can regularise, and estimating $\sigma$ well in high dimensions needs a model you have not fitted yet.</span>
+<span id="cb17-703"><a href="#cb17-703" aria-hidden="true" tabindex="-1"></a>Everything above tuned $\lambda$ by cross-validation, which treats it as a prediction hyperparameter. There is a second tradition that picks $\lambda$ from theory instead, and it runs into a problem worth understanding.</span>
 <span id="cb17-704"><a href="#cb17-704" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-705"><a href="#cb17-705" aria-hidden="true" tabindex="-1"></a>**Square-root lasso** removes the dependence. It replaces the mean squared error in the objective with the root mean squared error:</span>
+<span id="cb17-705"><a href="#cb17-705" aria-hidden="true" tabindex="-1"></a>The penalty level that the theory justifies for the ordinary lasso,</span>
 <span id="cb17-706"><a href="#cb17-706" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-707"><a href="#cb17-707" aria-hidden="true" tabindex="-1"></a>$$\hat\beta = \arg\min_\beta \left<span class="sc">\{</span> \tfrac{1}{\sqrt{n}} \lVert Y - X\beta \rVert_2 + \lambda \lVert \beta \rVert_1 \right<span class="sc">\}</span>,$$</span>
+<span id="cb17-707"><a href="#cb17-707" aria-hidden="true" tabindex="-1"></a>$$\hat\beta = \arg\min_\beta \left<span class="sc">\{</span> \tfrac{1}{2n}\lVert Y - X\beta \rVert_2^2 + \lambda \lVert \beta \rVert_1 \right<span class="sc">\}</span>,$$</span>
 <span id="cb17-708"><a href="#cb17-708" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-709"><a href="#cb17-709" aria-hidden="true" tabindex="-1"></a>and its justified penalty is</span>
+<span id="cb17-709"><a href="#cb17-709" aria-hidden="true" tabindex="-1"></a>scales as</span>
 <span id="cb17-710"><a href="#cb17-710" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-711"><a href="#cb17-711" aria-hidden="true" tabindex="-1"></a>$$\lambda \asymp \sqrt{\frac{\log p}{n}},$$</span>
+<span id="cb17-711"><a href="#cb17-711" aria-hidden="true" tabindex="-1"></a>$$\lambda \asymp \sigma \sqrt{\frac{\log p}{n}}.$$</span>
 <span id="cb17-712"><a href="#cb17-712" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-713"><a href="#cb17-713" aria-hidden="true" tabindex="-1"></a>with no $\sigma$ in it. The reason is self-normalisation. The quantity the penalty has to dominate is the score $X&#39;\varepsilon / n$, whose size grows with $\sigma$. Taking the square root of the residual sum of squares divides the score by the residual norm, giving $X&#39;\varepsilon / (\sqrt{n}\lVert\varepsilon\rVert_2)$, and since $\lVert\varepsilon\rVert_2/\sqrt{n} \approx \sigma$, the noise scale cancels. The estimator is also close to scale equivariant: multiply $Y$ by 100 and the loss and the penalty scale together, which is not true of the ordinary lasso objective.</span>
+<span id="cb17-713"><a href="#cb17-713" aria-hidden="true" tabindex="-1"></a>It depends on $\sigma$, the standard deviation of the regression errors, which you do not know. You are left estimating $\sigma$ before you can regularise, and estimating $\sigma$ well in high dimensions needs a model you have not fitted yet.</span>
 <span id="cb17-714"><a href="#cb17-714" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-715"><a href="#cb17-715" aria-hidden="true" tabindex="-1"></a>A concrete version of the problem. With $p = 1000$ and $n = 200$, the correct ordinary-lasso penalty is roughly twenty times larger when the residual standard deviation is 20 than when it is 1. The square-root lasso uses the same calibrated $\lambda$ in both cases.</span>
+<span id="cb17-715"><a href="#cb17-715" aria-hidden="true" tabindex="-1"></a>**Square-root lasso** removes the dependence. It replaces the mean squared error in the objective with the root mean squared error:</span>
 <span id="cb17-716"><a href="#cb17-716" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-717"><a href="#cb17-717" aria-hidden="true" tabindex="-1"></a>**Where this matters.** The gain is not in prediction. With cross-validation available and prediction as the goal, the ordinary lasso is generally fine, and square-root lasso is not inherently the better predictor. Its value is in high-dimensional *estimation and inference*, where you want a penalty chosen by theory so that guarantees such as $\lVert\hat\beta - \beta_0\rVert_2 = O_p(\sqrt{s \log p / n})$ hold without first knowing $\sigma$. That is why it appears throughout the literature Part 2 came from: post-double-selection, debiased machine learning and high-dimensional treatment-effect estimation all make use of it. The ordinary lasso needs to know how noisy $Y$ is before it can calibrate its regularisation; square-root lasso normalises by the observed residual noise instead.</span>
+<span id="cb17-717"><a href="#cb17-717" aria-hidden="true" tabindex="-1"></a>$$\hat\beta = \arg\min_\beta \left<span class="sc">\{</span> \tfrac{1}{\sqrt{n}} \lVert Y - X\beta \rVert_2 + \lambda \lVert \beta \rVert_1 \right<span class="sc">\}</span>,$$</span>
 <span id="cb17-718"><a href="#cb17-718" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-719"><a href="#cb17-719" aria-hidden="true" tabindex="-1"></a>The closely related **scaled lasso** of <span class="co">[</span><span class="ot">Sun and Zhang (2012)</span><span class="co">](https://doi.org/10.1093/biomet/ass043)</span> reaches the same place from a different direction, by estimating $\sigma$ and $\beta$ jointly. In R, <span class="in">`hdm::rlasso()`</span> fits the square-root lasso with the theoretical penalty, and <span class="in">`hdm::rlassoEffect()`</span> is the packaged version of the Part 2 estimator.</span>
+<span id="cb17-719"><a href="#cb17-719" aria-hidden="true" tabindex="-1"></a>and its justified penalty is</span>
 <span id="cb17-720"><a href="#cb17-720" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-721"><a href="#cb17-721" aria-hidden="true" tabindex="-1"></a>*Reading.* <span class="co">[</span><span class="ot">Belloni, Chernozhukov and Wang (2011)</span><span class="co">](https://doi.org/10.1093/biomet/asr043)</span> is the original; <span class="co">[</span><span class="ot">Belloni, Chernozhukov and Wang (2014)</span><span class="co">](https://doi.org/10.1214/14-AOS1204)</span> extends it to nonparametric regression; <span class="co">[</span><span class="ot">Sun and Zhang (2012)</span><span class="co">](https://doi.org/10.1093/biomet/ass043)</span> is the scaled-lasso counterpart.</span>
+<span id="cb17-721"><a href="#cb17-721" aria-hidden="true" tabindex="-1"></a>$$\lambda \asymp \sqrt{\frac{\log p}{n}},$$</span>
 <span id="cb17-722"><a href="#cb17-722" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-723"><a href="#cb17-723" aria-hidden="true" tabindex="-1"></a>::: {.callout-important collapse=&quot;true&quot;}</span>
-<span id="cb17-724"><a href="#cb17-724" aria-hidden="true" tabindex="-1"></a><span class="fu">## Exercise with a star, for those with time to spare</span></span>
-<span id="cb17-725"><a href="#cb17-725" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-726"><a href="#cb17-726" aria-hidden="true" tabindex="-1"></a>Show for yourself that the ordinary lasso&#39;s penalty has to track the noise scale, which is the problem square-root lasso solves.</span>
-<span id="cb17-727"><a href="#cb17-727" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-728"><a href="#cb17-728" aria-hidden="true" tabindex="-1"></a>Simulate $n = 200$, $p = 1000$, with five non-zero coefficients equal to 1, and draw the errors at three noise levels, $\sigma \in <span class="sc">\{</span>1, 5, 20<span class="sc">\}</span>$. At each one, pick $\lambda$ by cross-validation with <span class="in">`cv.glmnet(..., standardize = FALSE)`</span> and record three numbers: the selected <span class="in">`lambda.min`</span>, that value divided by $\sigma$, and $\sqrt{\log p / n}$.</span>
-<span id="cb17-729"><a href="#cb17-729" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-730"><a href="#cb17-730" aria-hidden="true" tabindex="-1"></a>You should find that the selected $\lambda$ moves by more than an order of magnitude across the three noise levels, while $\lambda / \sigma$ stays in a narrow band close to $\sqrt{\log p / n}$. That band is the square-root lasso penalty. Cross-validation recovers the $\sigma$ dependence empirically, one dataset at a time, while the square-root lasso has it removed from the objective.</span>
-<span id="cb17-731"><a href="#cb17-731" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-732"><a href="#cb17-732" aria-hidden="true" tabindex="-1"></a>Two questions to think about afterwards. First, cross-validation got you there without knowing $\sigma$, so what did the square-root lasso buy? The answer is about inference rather than prediction. Second, if you have <span class="in">`hdm`</span> installed, compare against <span class="in">`hdm::rlasso(X, y)`</span> and check whether its penalty moves with $\sigma$ at all.</span>
-<span id="cb17-733"><a href="#cb17-733" aria-hidden="true" tabindex="-1"></a>:::</span>
-<span id="cb17-734"><a href="#cb17-734" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-735"><a href="#cb17-735" aria-hidden="true" tabindex="-1"></a><span class="fu"># References</span></span>
-<span id="cb17-736"><a href="#cb17-736" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-737"><a href="#cb17-737" aria-hidden="true" tabindex="-1"></a>Belloni, A., Chernozhukov, V. &amp; Hansen, C. (2014) &quot;Inference on Treatment Effects after Selection among High-Dimensional Controls.&quot; *Review of Economic Studies* 81(2): 608-650. doi:<span class="co">[</span><span class="ot">10.1093/restud/rdt044</span><span class="co">](https://doi.org/10.1093/restud/rdt044)</span></span>
-<span id="cb17-738"><a href="#cb17-738" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-739"><a href="#cb17-739" aria-hidden="true" tabindex="-1"></a>Belloni, A., Chernozhukov, V. &amp; Wang, L. (2011) &quot;Square-Root Lasso: Pivotal Recovery of Sparse Signals via Conic Programming.&quot; *Biometrika* 98(4): 791-806. doi:<span class="co">[</span><span class="ot">10.1093/biomet/asr043</span><span class="co">](https://doi.org/10.1093/biomet/asr043)</span></span>
-<span id="cb17-740"><a href="#cb17-740" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-741"><a href="#cb17-741" aria-hidden="true" tabindex="-1"></a>Belloni, A., Chernozhukov, V. &amp; Wang, L. (2014) &quot;Pivotal Estimation via Square-Root Lasso in Nonparametric Regression.&quot; *Annals of Statistics* 42(2): 757-788. doi:<span class="co">[</span><span class="ot">10.1214/14-AOS1204</span><span class="co">](https://doi.org/10.1214/14-AOS1204)</span></span>
-<span id="cb17-742"><a href="#cb17-742" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-743"><a href="#cb17-743" aria-hidden="true" tabindex="-1"></a>Bickel, P. J., Ritov, Y. &amp; Tsybakov, A. B. (2009) &quot;Simultaneous Analysis of Lasso and Dantzig Selector.&quot; *Annals of Statistics* 37(4): 1705-1732. doi:<span class="co">[</span><span class="ot">10.1214/08-AOS620</span><span class="co">](https://doi.org/10.1214/08-AOS620)</span></span>
+<span id="cb17-723"><a href="#cb17-723" aria-hidden="true" tabindex="-1"></a>with no $\sigma$ in it. The reason is self-normalisation. The quantity the penalty has to dominate is the score $X&#39;\varepsilon / n$, whose size grows with $\sigma$. Taking the square root of the residual sum of squares divides the score by the residual norm, giving $X&#39;\varepsilon / (\sqrt{n}\lVert\varepsilon\rVert_2)$, and since $\lVert\varepsilon\rVert_2/\sqrt{n} \approx \sigma$, the noise scale cancels. The estimator is also close to scale equivariant: multiply $Y$ by 100 and the loss and the penalty scale together, which is not true of the ordinary lasso objective.</span>
+<span id="cb17-724"><a href="#cb17-724" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-725"><a href="#cb17-725" aria-hidden="true" tabindex="-1"></a>A concrete version of the problem. With $p = 1000$ and $n = 200$, the correct ordinary-lasso penalty is roughly twenty times larger when the residual standard deviation is 20 than when it is 1. The square-root lasso uses the same calibrated $\lambda$ in both cases.</span>
+<span id="cb17-726"><a href="#cb17-726" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-727"><a href="#cb17-727" aria-hidden="true" tabindex="-1"></a>**Where this matters.** The gain is not in prediction. With cross-validation available and prediction as the goal, the ordinary lasso is generally fine, and square-root lasso is not inherently the better predictor. Its value is in high-dimensional *estimation and inference*, where you want a penalty chosen by theory so that guarantees such as $\lVert\hat\beta - \beta_0\rVert_2 = O_p(\sqrt{s \log p / n})$ hold without first knowing $\sigma$. That is why it appears throughout the literature Part 2 came from: post-double-selection, debiased machine learning and high-dimensional treatment-effect estimation all make use of it. The ordinary lasso needs to know how noisy $Y$ is before it can calibrate its regularisation; square-root lasso normalises by the observed residual noise instead.</span>
+<span id="cb17-728"><a href="#cb17-728" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-729"><a href="#cb17-729" aria-hidden="true" tabindex="-1"></a>The closely related **scaled lasso** of <span class="co">[</span><span class="ot">Sun and Zhang (2012)</span><span class="co">](https://doi.org/10.1093/biomet/ass043)</span> reaches the same place from a different direction, by estimating $\sigma$ and $\beta$ jointly. In R, <span class="in">`hdm::rlasso()`</span> fits the square-root lasso with the theoretical penalty, and <span class="in">`hdm::rlassoEffect()`</span> is the packaged version of the Part 2 estimator.</span>
+<span id="cb17-730"><a href="#cb17-730" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-731"><a href="#cb17-731" aria-hidden="true" tabindex="-1"></a>*Reading.* <span class="co">[</span><span class="ot">Belloni, Chernozhukov and Wang (2011)</span><span class="co">](https://doi.org/10.1093/biomet/asr043)</span> is the original; <span class="co">[</span><span class="ot">Belloni, Chernozhukov and Wang (2014)</span><span class="co">](https://doi.org/10.1214/14-AOS1204)</span> extends it to nonparametric regression; <span class="co">[</span><span class="ot">Sun and Zhang (2012)</span><span class="co">](https://doi.org/10.1093/biomet/ass043)</span> is the scaled-lasso counterpart.</span>
+<span id="cb17-732"><a href="#cb17-732" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-733"><a href="#cb17-733" aria-hidden="true" tabindex="-1"></a>::: {.callout-important collapse=&quot;true&quot;}</span>
+<span id="cb17-734"><a href="#cb17-734" aria-hidden="true" tabindex="-1"></a><span class="fu">## Exercise with a star, for those with time to spare</span></span>
+<span id="cb17-735"><a href="#cb17-735" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-736"><a href="#cb17-736" aria-hidden="true" tabindex="-1"></a>Show for yourself that the ordinary lasso&#39;s penalty has to track the noise scale, which is the problem square-root lasso solves.</span>
+<span id="cb17-737"><a href="#cb17-737" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-738"><a href="#cb17-738" aria-hidden="true" tabindex="-1"></a>Simulate $n = 200$, $p = 1000$, with five non-zero coefficients equal to 1, and draw the errors at three noise levels, $\sigma \in <span class="sc">\{</span>1, 5, 20<span class="sc">\}</span>$. At each one, pick $\lambda$ by cross-validation with <span class="in">`cv.glmnet(..., standardize = FALSE)`</span> and record three numbers: the selected <span class="in">`lambda.min`</span>, that value divided by $\sigma$, and $\sqrt{\log p / n}$.</span>
+<span id="cb17-739"><a href="#cb17-739" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-740"><a href="#cb17-740" aria-hidden="true" tabindex="-1"></a>You should find that the selected $\lambda$ moves by more than an order of magnitude across the three noise levels, while $\lambda / \sigma$ stays in a narrow band close to $\sqrt{\log p / n}$. That band is the square-root lasso penalty. Cross-validation recovers the $\sigma$ dependence empirically, one dataset at a time, while the square-root lasso has it removed from the objective.</span>
+<span id="cb17-741"><a href="#cb17-741" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-742"><a href="#cb17-742" aria-hidden="true" tabindex="-1"></a>Two questions to think about afterwards. First, cross-validation got you there without knowing $\sigma$, so what did the square-root lasso buy? The answer is about inference rather than prediction. Second, if you have <span class="in">`hdm`</span> installed, compare against <span class="in">`hdm::rlasso(X, y)`</span> and check whether its penalty moves with $\sigma$ at all.</span>
+<span id="cb17-743"><a href="#cb17-743" aria-hidden="true" tabindex="-1"></a>:::</span>
 <span id="cb17-744"><a href="#cb17-744" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-745"><a href="#cb17-745" aria-hidden="true" tabindex="-1"></a>Gerber, A. S., Green, D. P. &amp; Larimer, C. W. (2008) &quot;Social Pressure and Voter Turnout: Evidence from a Large-Scale Field Experiment.&quot; *American Political Science Review* 102(1): 33-48. doi:<span class="co">[</span><span class="ot">10.1017/S000305540808009X</span><span class="co">](https://doi.org/10.1017/S000305540808009X)</span></span>
+<span id="cb17-745"><a href="#cb17-745" aria-hidden="true" tabindex="-1"></a><span class="fu"># References</span></span>
 <span id="cb17-746"><a href="#cb17-746" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-747"><a href="#cb17-747" aria-hidden="true" tabindex="-1"></a>Lockhart, R., Taylor, J., Tibshirani, R. J. &amp; Tibshirani, R. (2014) &quot;A Significance Test for the Lasso.&quot; *Annals of Statistics* 42(2): 413-468. doi:<span class="co">[</span><span class="ot">10.1214/13-AOS1175</span><span class="co">](https://doi.org/10.1214/13-AOS1175)</span></span>
+<span id="cb17-747"><a href="#cb17-747" aria-hidden="true" tabindex="-1"></a>Belloni, A., Chernozhukov, V. &amp; Hansen, C. (2014) &quot;Inference on Treatment Effects after Selection among High-Dimensional Controls.&quot; *Review of Economic Studies* 81(2): 608-650. doi:<span class="co">[</span><span class="ot">10.1093/restud/rdt044</span><span class="co">](https://doi.org/10.1093/restud/rdt044)</span></span>
 <span id="cb17-748"><a href="#cb17-748" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-749"><a href="#cb17-749" aria-hidden="true" tabindex="-1"></a>Slough, T. &amp; Tyson, S. A. (2023) &quot;External Validity and Meta-Analysis.&quot; *American Journal of Political Science* 67(2): 440-455. doi:<span class="co">[</span><span class="ot">10.1111/ajps.12742</span><span class="co">](https://doi.org/10.1111/ajps.12742)</span></span>
+<span id="cb17-749"><a href="#cb17-749" aria-hidden="true" tabindex="-1"></a>Belloni, A., Chernozhukov, V. &amp; Wang, L. (2011) &quot;Square-Root Lasso: Pivotal Recovery of Sparse Signals via Conic Programming.&quot; *Biometrika* 98(4): 791-806. doi:<span class="co">[</span><span class="ot">10.1093/biomet/asr043</span><span class="co">](https://doi.org/10.1093/biomet/asr043)</span></span>
 <span id="cb17-750"><a href="#cb17-750" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-751"><a href="#cb17-751" aria-hidden="true" tabindex="-1"></a>Sun, T. &amp; Zhang, C.-H. (2012) &quot;Scaled Sparse Linear Regression.&quot; *Biometrika* 99(4): 879-898. doi:<span class="co">[</span><span class="ot">10.1093/biomet/ass043</span><span class="co">](https://doi.org/10.1093/biomet/ass043)</span></span>
+<span id="cb17-751"><a href="#cb17-751" aria-hidden="true" tabindex="-1"></a>Belloni, A., Chernozhukov, V. &amp; Wang, L. (2014) &quot;Pivotal Estimation via Square-Root Lasso in Nonparametric Regression.&quot; *Annals of Statistics* 42(2): 757-788. doi:<span class="co">[</span><span class="ot">10.1214/14-AOS1204</span><span class="co">](https://doi.org/10.1214/14-AOS1204)</span></span>
+<span id="cb17-752"><a href="#cb17-752" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-753"><a href="#cb17-753" aria-hidden="true" tabindex="-1"></a>Bickel, P. J., Ritov, Y. &amp; Tsybakov, A. B. (2009) &quot;Simultaneous Analysis of Lasso and Dantzig Selector.&quot; *Annals of Statistics* 37(4): 1705-1732. doi:<span class="co">[</span><span class="ot">10.1214/08-AOS620</span><span class="co">](https://doi.org/10.1214/08-AOS620)</span></span>
+<span id="cb17-754"><a href="#cb17-754" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-755"><a href="#cb17-755" aria-hidden="true" tabindex="-1"></a>Gerber, A. S., Green, D. P. &amp; Larimer, C. W. (2008) &quot;Social Pressure and Voter Turnout: Evidence from a Large-Scale Field Experiment.&quot; *American Political Science Review* 102(1): 33-48. doi:<span class="co">[</span><span class="ot">10.1017/S000305540808009X</span><span class="co">](https://doi.org/10.1017/S000305540808009X)</span></span>
+<span id="cb17-756"><a href="#cb17-756" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-757"><a href="#cb17-757" aria-hidden="true" tabindex="-1"></a>Lockhart, R., Taylor, J., Tibshirani, R. J. &amp; Tibshirani, R. (2014) &quot;A Significance Test for the Lasso.&quot; *Annals of Statistics* 42(2): 413-468. doi:<span class="co">[</span><span class="ot">10.1214/13-AOS1175</span><span class="co">](https://doi.org/10.1214/13-AOS1175)</span></span>
+<span id="cb17-758"><a href="#cb17-758" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-759"><a href="#cb17-759" aria-hidden="true" tabindex="-1"></a>Slough, T. &amp; Tyson, S. A. (2023) &quot;External Validity and Meta-Analysis.&quot; *American Journal of Political Science* 67(2): 440-455. doi:<span class="co">[</span><span class="ot">10.1111/ajps.12742</span><span class="co">](https://doi.org/10.1111/ajps.12742)</span></span>
+<span id="cb17-760"><a href="#cb17-760" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-761"><a href="#cb17-761" aria-hidden="true" tabindex="-1"></a>Sun, T. &amp; Zhang, C.-H. (2012) &quot;Scaled Sparse Linear Regression.&quot; *Biometrika* 99(4): 879-898. doi:<span class="co">[</span><span class="ot">10.1093/biomet/ass043</span><span class="co">](https://doi.org/10.1093/biomet/ass043)</span></span>
 </code><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal><i class="bi"></i></button></pre></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
