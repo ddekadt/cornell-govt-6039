@@ -13,6 +13,14 @@ format:
     html-math-method: mathjax
     fig-width: 7
     fig-height: 4
+  pdf:
+    toc: true
+    toc-depth: 2
+    geometry: margin=1in
+    colorlinks: true
+    fig-width: 7
+    fig-height: 4
+    fig-pos: "H"
 execute:
   echo: true
   warning: false
@@ -43,9 +51,42 @@ theme_set(
           plot.title.position = "plot")
 )
 
+## simple DAG renderer: works in HTML and PDF, needs no browser
+dag <- function(confounded = TRUE, xlab, dlab, ylab) {
+  W <- 1.35; H <- 0.56
+  nd <- data.frame(x = c(0, 3, 1.5), y = c(0, 0, 1.25),
+                   lab = c(dlab, ylab, xlab),
+                   fill = c(unname(pal["blue"]), unname(pal["orange"]), "#f2f2ef"),
+                   txt  = c("white", "white", ink))
+  trim <- function(x0, y0, x1, y1) {
+    dx <- x1 - x0; dy <- y1 - y0; L <- sqrt(dx^2 + dy^2)
+    sx <- abs(dx)/L; sy <- abs(dy)/L
+    k <- min(if (sx > 1e-9) (W/2 + 0.06)/sx else Inf,
+             if (sy > 1e-9) (H/2 + 0.06)/sy else Inf)
+    data.frame(x = x0 + dx/L*k, y = y0 + dy/L*k, xend = x1 - dx/L*k, yend = y1 - dy/L*k)
+  }
+  edges <- rbind(trim(0, 0, 3, 0), trim(1.5, 1.25, 3, 0))
+  if (confounded) edges <- rbind(edges, trim(1.5, 1.25, 0, 0))
+
+  ggplot() +
+    geom_segment(data = edges, aes(x, y, xend = xend, yend = yend),
+                 arrow = arrow(length = unit(0.16, "cm"), type = "closed"),
+                 linewidth = 0.5, colour = ink2) +
+    geom_tile(data = nd, aes(x, y), width = W, height = H, fill = nd$fill,
+              colour = "grey55", linewidth = 0.3) +
+    geom_text(data = nd, aes(x, y, label = lab), colour = nd$txt,
+              size = 2.9, lineheight = 0.95) +
+    annotate("text", x = 1.5, y = 0.15, label = "tau", parse = TRUE,
+             size = 3.8, colour = ink) +
+    coord_cartesian(xlim = c(-0.9, 3.9), ylim = c(-0.42, 1.67), expand = FALSE) +
+    theme_void()
+}
+
 tbl <- function(df, caption = NULL, digits = 4) {
   num <- sapply(df, is.numeric)
   df[num] <- lapply(df[num], round, digits)
+  if (knitr::is_latex_output())
+    return(knitr::kable(df, booktabs = TRUE, linesep = "", caption = caption))
   datatable(df, rownames = FALSE, caption = caption,
             options = list(dom = "t", ordering = TRUE, paging = FALSE,
                            columnDefs = list(list(className = "dt-right", targets = "_all"))))
@@ -225,15 +266,13 @@ Call that the **naive** approach: regress $Y$ on $D$ and all of $X$, leave $D$ u
 
 This is biased, for a reason that is easiest to see in a diagram.
 
-```{mermaid}
-%%| fig-cap: "The observational case. X causes both D and Y, so leaving any part of it out biases the estimate of D on Y."
-flowchart LR
-  X["X<br/>candidate controls"] --> D["D<br/>treatment"]
-  X --> Y["Y<br/>outcome"]
-  D -->|"&tau;"| Y
-  style D fill:#2a78d6,stroke:#1a5aa8,color:#fff
-  style Y fill:#eb6834,stroke:#b8481f,color:#fff
-  style X fill:#f4f4f2,stroke:#8a8a85,color:#0b0b0b
+```{r dag-observational}
+#| echo: false
+#| fig-width: 6.2
+#| fig-height: 2.6
+#| fig-cap: "The observational case. X causes both D and Y, so leaving any part of it out biases the estimate of D on Y."
+dag(confounded = TRUE, xlab = "X\ncandidate controls",
+    dlab = "D\ntreatment", ylab = "Y\noutcome")
 ```
 
 Both arrows out of `X` are live. To recover $\tau$ you must block the back-door path
@@ -504,14 +543,13 @@ The reason to write this down first is the same as in section 2. The empirical t
 
 ## Why the picture is different from Part 2
 
-```{mermaid}
-%%| fig-cap: "The experimental case. D has no parents, which is what randomisation looks like in a DAG."
-flowchart LR
-  X["X<br/>pre-treatment covariates"] --> Y["Y<br/>validated turnout"]
-  D["D<br/>Neighbors mailing"] -->|"&tau;"| Y
-  style D fill:#2a78d6,stroke:#1a5aa8,color:#fff
-  style Y fill:#eb6834,stroke:#b8481f,color:#fff
-  style X fill:#f4f4f2,stroke:#8a8a85,color:#0b0b0b
+```{r dag-experimental}
+#| echo: false
+#| fig-width: 6.2
+#| fig-height: 2.6
+#| fig-cap: "The experimental case. D has no parents, which is what randomisation looks like in a DAG."
+dag(confounded = FALSE, xlab = "X\npre-treatment covariates",
+    dlab = "D\nNeighbors mailing", ylab = "Y\nvalidated turnout")
 ```
 
 :::{.callout-tip}

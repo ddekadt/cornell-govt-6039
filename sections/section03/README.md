@@ -56,10 +56,13 @@ comparison between estimators is unaffected.
 ### Rebuilding
 
 ```bash
-quarto render section03.qmd
+quarto render section03.qmd            # both formats
+quarto render section03.qmd --to html  # or one at a time
+quarto render section03.qmd --to pdf
 ```
 
-Needs `glmnet`, `ggplot2`, `ggrepel` and `DT`.
+Needs `glmnet`, `ggplot2`, `ggrepel` and `DT`, and a LaTeX installation for the PDF. Both
+diagrams are drawn in R rather than Mermaid, so neither format needs a headless browser.
 
 The two simulations are about 260 cross-validated lasso fits and take roughly four minutes. Their
 results are stored in `data/sim_results.rds`, which ships with this folder, so a normal render
@@ -72,7 +75,7 @@ reproduces the same values.
 
 | file | what it is |
 |:--|:--|
-| `section03.qmd` / `.html` | the walkthrough, source and rendered |
+| `section03.qmd` / `.html` / `.pdf` | the walkthrough, source and rendered |
 | `data/social_slim.rds` | Control and Neighbors arms of Gerber, Green & Larimer (2008), six columns |
 | `data/sim_results.rds` | precomputed output of the two simulations, so renders are fast |
 | `images/*.png` | the four treatment mailings, from Appendix A of the published paper |
