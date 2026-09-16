@@ -1,0 +1,747 @@
+---
+title: "Section 3: Penalized Regression and Covariate Selection"
+subtitle: "GOVT 6039 | Fall 2026 | Discussion section, 16 September 2026"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    embed-resources: true
+    code-fold: show
+    code-summary: "code"
+    code-tools: true
+    theme: cosmo
+    html-math-method: mathjax
+    fig-width: 7
+    fig-height: 4
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+```{r setup}
+#| include: false
+knitr::opts_chunk$set(fig.align = "center", dpi = 140)
+library(glmnet)
+library(ggplot2)
+library(DT)
+library(ggrepel)
+
+## validated categorical palette (blue / orange / aqua), neutral for reference marks
+pal  <- c(blue = "#2a78d6", orange = "#eb6834", aqua = "#1baf7a", yellow = "#eda100")
+ink  <- "#0b0b0b"; ink2 <- "#52514e"; ref <- "#8a8a85"
+
+theme_set(
+  theme_minimal(base_size = 12) +
+    theme(panel.grid.minor = element_blank(),
+          panel.grid.major = element_line(colour = "grey92", linewidth = 0.3),
+          axis.title = element_text(colour = ink2, size = 10),
+          plot.title = element_text(colour = ink, face = "bold", size = 13),
+          plot.subtitle = element_text(colour = ink2, size = 10),
+          plot.caption = element_text(colour = ink2, size = 9, hjust = 0),
+          legend.position = "none",
+          plot.title.position = "plot")
+)
+
+tbl <- function(df, caption = NULL, digits = 4) {
+  num <- sapply(df, is.numeric)
+  df[num] <- lapply(df[num], round, digits)
+  datatable(df, rownames = FALSE, caption = caption,
+            options = list(dom = "t", ordering = TRUE, paging = FALSE,
+                           columnDefs = list(list(className = "dt-right", targets = "_all"))))
+}
+```
+
+Lecture 5 gave you three penalties and a way to tune them. It did not say which columns should sit inside the penalty in the first place. That decision is what this section is about.
+
+Slide 3 of the lecture listed two motivations we never came back to, both causal: covariate selection for improving efficiency in causal designs, and finding covariates to pair-match on before randomization. Slide 27 then showed what goes wrong when the penalty is pointed at a coefficient you cared about. We pick up both of those here.
+
+## Getting this running
+
+This page is rendered from `section03.qmd`, so if you change the code you change the document.
+
+**If you use Git.** The materials live in the course repository under `sections/section03/`.
+
+```bash
+git clone https://github.com/ddekadt/cornell-govt-6039.git
+cd cornell-govt-6039/sections/section03
+quarto render section03.qmd
+```
+
+If you would rather not download the whole course repository, check out that one folder:
+
+```bash
+git clone --filter=blob:none --sparse https://github.com/ddekadt/cornell-govt-6039.git
+cd cornell-govt-6039
+git sparse-checkout set sections/section03
+cd sections/section03
+```
+
+**If you would rather not use Git.** One file is enough. Put it in an empty folder and render:
+
+```bash
+curl -O https://raw.githubusercontent.com/ddekadt/cornell-govt-6039/main/sections/section03/section03.qmd
+quarto render section03.qmd
+```
+
+You can also click the `</>` Code button at the top right of this page, choose View Source, and save what you see as `section03.qmd`. The document downloads its own data, so no data files are needed to start.
+
+# Part 0: notation
+
+From Lecture 5, unchanged:
+
+| | |
+|---|---|
+| $\|b\|_2^2 = \sum_j b_j^2$ | ridge penalty, $\hat\beta^R_\lambda$ |
+| $\|b\|_1 = \sum_j \lvert b_j \rvert$ | lasso penalty, $\hat\beta^L_\lambda$ |
+| $\|b\|_0 = \sum_j I(b_j \neq 0)$ | counts non-zeros, not a true norm |
+| $\lambda$ | how much size counts, chosen by 10-fold CV |
+
+Two facts matter below. Penalized estimators are not scale invariant, so columns get standardized first. And `glmnet` lets you exempt a column from the penalty with `penalty.factor = 0`. We use that argument repeatedly.
+
+# Part 1: the penalty does not know which coefficients are true
+
+Slide 27 admitted that `age`, `age²` and `mail` had been exempted from the penalty all along, and showed what happens when they are not. We can rebuild that here.
+
+The setup is the lecture's: 200 age-by-state observations, the turnout curve from Lectures 1 to 3, and 150 merged-in administrative columns of which three matter.
+
+```{r part1-dgp}
+set.seed(6039)
+n <- 200; sig <- 7
+f0 <- function(a) 5 + 1.5*a + 0.0015*a^2 - 0.0001*a^3
+
+age <- runif(n, 18, 85)
+Z   <- matrix(rnorm(n * 150), n, 150)
+bz  <- c(9.0, -6.6, 4.2, rep(0, 147))
+y   <- f0(age) + as.numeric(Z %*% bz) + rnorm(n, 0, sig)
+
+X <- cbind(age = age, age2 = age^2, age3 = age^3, Z)
+```
+
+Now fit the same estimator twice. The only difference is whether the three age columns sit inside the penalty.
+
+```{r part1-fit}
+pts <- c(20, 35, 50, 65, 85)
+Ap  <- cbind(pts, pts^2, pts^3)
+grid <- seq(18, 85, length.out = 300)
+Ag   <- cbind(grid, grid^2, grid^3)
+
+fit_curve <- function(penalty_factor, alpha) {
+  cv <- cv.glmnet(X, y, alpha = alpha, penalty.factor = penalty_factor, nfolds = 10)
+  b  <- as.numeric(coef(cv, s = "lambda.min"))
+  list(at_pts = as.numeric(b[1] + Ap %*% b[2:4]),
+       curve  = as.numeric(b[1] + Ag %*% b[2:4]),
+       age_coef = b[2])
+}
+
+exempt <- c(0, 0, 0, rep(1, 150))   # age terms outside the penalty
+all_in <- rep(1, 153)               # everything penalised
+
+r_exempt <- fit_curve(exempt, 0)
+r_allin  <- fit_curve(all_in, 0)
+l_allin  <- fit_curve(all_in, 1)
+```
+
+::: {.panel-tabset}
+
+## Figure
+
+```{r part1-plot}
+#| echo: false
+#| fig-height: 4.6
+#| fig-cap: "Same ridge estimator, same data. The only difference is whether the three age columns sit inside the penalty."
+curves <- rbind(
+  data.frame(age = grid, fit = f0(grid),        series = "truth"),
+  data.frame(age = grid, fit = r_exempt$curve,  series = "ridge, age exempt"),
+  data.frame(age = grid, fit = r_allin$curve,   series = "ridge, age penalised"),
+  data.frame(age = grid, fit = l_allin$curve,   series = "lasso, age penalised"))
+curves$series <- factor(curves$series,
+  levels = c("truth", "ridge, age exempt", "ridge, age penalised", "lasso, age penalised"))
+
+cols <- c("truth" = ref, "ridge, age exempt" = unname(pal["blue"]),
+          "ridge, age penalised" = unname(pal["orange"]), "lasso, age penalised" = unname(pal["aqua"]))
+ends <- do.call(rbind, lapply(split(curves, curves$series), function(d) d[nrow(d), ]))
+
+ggplot(curves, aes(age, fit, colour = series)) +
+  geom_point(data = data.frame(age = age, fit = y), aes(age, fit),
+             inherit.aes = FALSE, colour = "grey75", size = 0.9, alpha = 0.55) +
+  geom_line(aes(linetype = series, linewidth = series)) +
+  ggrepel::geom_text_repel(data = ends, aes(label = series), hjust = 0, nudge_x = 2,
+            size = 3.1, fontface = "bold", show.legend = FALSE,
+            direction = "y", segment.colour = NA, box.padding = 0.15, seed = 3) +
+  scale_colour_manual(values = cols) +
+  scale_linetype_manual(values = c("truth" = "22", "ridge, age exempt" = "solid",
+                                   "ridge, age penalised" = "solid", "lasso, age penalised" = "solid")) +
+  scale_linewidth_manual(values = c("truth" = 1.0, "ridge, age exempt" = 0.9,
+                                    "ridge, age penalised" = 0.9, "lasso, age penalised" = 0.9)) +
+  coord_cartesian(xlim = c(18, 108), ylim = c(15, 100), expand = FALSE) +
+  labs(title = "Penalising the age terms changes the shape of the curve",
+       subtitle = "Turnout against age, 200 observations and 150 nuisance columns",
+       x = "Age", y = "Turnout (pp)",
+       caption = "Grey points are the observed sample. Dashed line is the true f(age).")
+```
+
+## Fitted values
+
+```{r part1-tab}
+#| echo: false
+tbl(data.frame(
+  estimator = c("truth", "ridge, age exempt", "ridge, age penalised", "lasso, age penalised"),
+  `age 20` = c(f0(20), r_exempt$at_pts[1], r_allin$at_pts[1], l_allin$at_pts[1]),
+  `age 50` = c(f0(50), r_exempt$at_pts[3], r_allin$at_pts[3], l_allin$at_pts[3]),
+  `age 85` = c(f0(85), r_exempt$at_pts[5], r_allin$at_pts[5], l_allin$at_pts[5]),
+  check.names = FALSE), digits = 1,
+  caption = "Fitted turnout at three ages.")
+```
+
+## Age coefficient
+
+```{r part1-coef}
+#| echo: false
+tbl(data.frame(
+  estimator = c("ridge, age exempt", "ridge, age penalised"),
+  `linear age coefficient` = c(r_exempt$age_coef, r_allin$age_coef),
+  check.names = FALSE), digits = 3,
+  caption = "The coefficient on age, inside and outside the penalty.")
+```
+
+:::
+
+:::{.callout-note}
+## What to draw out
+Exempted, ridge tracks the curve. Penalized, the linear age coefficient collapses from about 3.8 to about 0.35, and the fitted curve takes the wrong shape, starting far too high at age 20 and overshooting at 85. The age relationship we set out to estimate has been shrunk away.
+
+The lasso does better here, which is also what the lecture found. Ridge shrinks every coefficient a little; the lasso either keeps a column or drops it, so a column with real signal tends to survive.
+
+:::
+
+The general point is the one from slide 27. The penalty does not know which coefficients are true. It penalizes size, and size depends on the scale and structure of the column. **Anything you care about interpreting should be exempt.** Below, the treatment indicator is always exempt for this reason.
+
+# Part 2: selecting controls for a treatment effect
+
+Now the causal version. You have a treatment $D$, an outcome $Y$, and far more candidate controls than you can put in a regression. A natural thing to try is letting the lasso pick them.
+
+Call that the **naive** approach: regress $Y$ on $D$ and all of $X$, leave $D$ unpenalized so it cannot be dropped, keep whichever controls survive, refit OLS on those.
+
+This is biased, for a reason that is easiest to see in a diagram.
+
+```{mermaid}
+%%| fig-cap: "The observational case. X causes both D and Y, so leaving any part of it out biases the estimate of D on Y."
+flowchart LR
+  X["X<br/>candidate controls"] --> D["D<br/>treatment"]
+  X --> Y["Y<br/>outcome"]
+  D -->|"&tau;"| Y
+  style D fill:#2a78d6,stroke:#1a5aa8,color:#fff
+  style Y fill:#eb6834,stroke:#b8481f,color:#fff
+  style X fill:#f4f4f2,stroke:#8a8a85,color:#0b0b0b
+```
+
+Both arrows out of `X` are live. To recover $\tau$ you must block the back-door path
+$D \leftarrow X \rightarrow Y$, which means holding the relevant parts of $X$ fixed. The
+lasso is being asked to work out which parts.
+
+The data generating process below shows what goes wrong.
+
+```{r part2-dgp}
+n <- 500; p <- 200; tau <- 1
+n_conf <- 20        # confounders
+b_conf <- 0.25      # weak in the outcome equation
+g_conf <- 0.5       # moderate in the treatment equation
+
+make_data <- function(seed) {
+  set.seed(seed)
+  X <- matrix(rnorm(n * p), n, p)
+  beta  <- c(rep(b_conf, n_conf), rep(0, p - n_conf))
+  gamma <- c(rep(g_conf, n_conf), rep(0, p - n_conf))
+  D <- as.numeric(X %*% gamma) + rnorm(n)
+  Y <- tau * D + as.numeric(X %*% beta) + rnorm(n, 0, 2)
+  list(X = X, D = D, Y = Y)
+}
+```
+
+Twenty covariates confound $D$ and $Y$. Each has a weak effect on the outcome and a moderate effect on treatment assignment. Individually none is a strong predictor of $Y$, but their combined contribution is large.
+
+```{r part2-estimators}
+select <- function(M, y, penalty_factor = NULL) {
+  cv <- if (is.null(penalty_factor)) cv.glmnet(M, y, alpha = 1, nfolds = 10)
+        else cv.glmnet(M, y, alpha = 1, nfolds = 10, penalty.factor = penalty_factor)
+  which(as.numeric(coef(cv, s = "lambda.min"))[-1] != 0)
+}
+
+tau_hat <- function(Y, D, X, idx) {
+  if (length(idx) == 0) return(unname(coef(lm(Y ~ D))[2]))
+  W <- X[, idx, drop = FALSE]
+  unname(coef(lm(Y ~ D + W))[2])
+}
+
+one_run <- function(seed) {
+  d <- make_data(seed); X <- d$X; D <- d$D; Y <- d$Y
+
+  # naive: one lasso of Y on D and X, with D forced in
+  s_naive <- select(cbind(D, X), Y, c(0, rep(1, p)))
+  keep_naive <- s_naive[s_naive > 1] - 1
+
+  # post-double-selection: two lassos, then the union
+  s_y <- select(X, Y)
+  s_d <- select(X, D)
+  keep_pds <- union(s_y, s_d)
+
+  c(none   = tau_hat(Y, D, X, integer(0)),
+    naive  = tau_hat(Y, D, X, keep_naive),
+    pds    = tau_hat(Y, D, X, keep_pds),
+    oracle = tau_hat(Y, D, X, 1:n_conf),
+    k_naive = length(keep_naive), k_pds = length(keep_pds),
+    found_y = sum(s_y <= n_conf), found_d = sum(s_d <= n_conf),
+    found_naive = sum(keep_naive <= n_conf),
+    null_y = sum(s_y > n_conf), null_d = sum(s_d > n_conf),
+    null_naive = sum(keep_naive > n_conf))
+}
+```
+
+Running this 60 times takes a few minutes, so the results are cached to disk. Delete
+`data/sim_results.rds` to recompute them from scratch.
+
+```{r part2-run}
+sim_file <- "data/sim_results.rds"
+dir.create("data", showWarnings = FALSE)
+
+# The simulations take about four minutes. Fetch the stored results if they are not
+# already here; delete the file to recompute them from scratch.
+if (!file.exists(sim_file))
+  try(download.file(paste0("https://raw.githubusercontent.com/ddekadt/cornell-govt-6039/",
+                           "main/sections/section03/data/sim_results.rds"),
+                    sim_file, mode = "wb"), silent = TRUE)
+
+sims <- if (file.exists(sim_file)) readRDS(sim_file) else list()
+
+if (is.null(sims$part2)) {
+  sims$part2 <- t(sapply(1:60, one_run))
+  saveRDS(sims, sim_file)
+}
+R <- sims$part2
+```
+
+::: {.panel-tabset}
+
+## Where the estimates land
+
+```{r part2-plot}
+#| echo: false
+#| fig-height: 4.2
+#| fig-cap: "Each dot is one of 60 replications. The dashed line is the truth."
+est <- data.frame(
+  value = c(R[,"none"], R[,"naive"], R[,"pds"], R[,"oracle"]),
+  est   = rep(c("no controls", "naive lasso", "post-double-selection", "oracle (true 20)"),
+              each = nrow(R)))
+est$est <- factor(est$est, levels = rev(c("no controls", "naive lasso",
+                                          "post-double-selection", "oracle (true 20)")))
+mu <- aggregate(value ~ est, est, mean)
+
+ggplot(est, aes(value, est)) +
+  geom_vline(xintercept = tau, linetype = "22", colour = ref, linewidth = 0.8) +
+  annotate("text", x = tau, y = Inf, label = "truth = 1", colour = ref,
+           size = 3.2, fontface = "bold", hjust = -0.12, vjust = 1.6) +
+  geom_point(aes(colour = est), alpha = 0.35, size = 1.7,
+             position = position_jitter(height = 0.13, seed = 1)) +
+  geom_point(data = mu, aes(value, est), size = 3.6, shape = 21,
+             fill = "white", colour = ink, stroke = 1.1) +
+  geom_text(data = mu, aes(value, est, label = sprintf("%.2f", value)),
+            vjust = -1.5, size = 3.2, colour = ink, fontface = "bold") +
+  scale_colour_manual(values = c("no controls" = unname(pal["orange"]),
+                                 "naive lasso" = unname(pal["orange"]),
+                                 "post-double-selection" = unname(pal["blue"]),
+                                 "oracle (true 20)" = unname(pal["aqua"]))) +
+  coord_cartesian(xlim = c(0.7, 1.6), clip = "off") +
+  labs(title = "Selecting controls with one lasso barely improves on using none",
+       subtitle = "Estimated treatment effect across 60 replications; hollow marker is the mean",
+       x = expression(hat(tau)), y = NULL) +
+  theme(plot.margin = margin(18, 12, 6, 6))
+```
+
+## Why it fails
+
+```{r part2-mech}
+#| echo: false
+#| fig-height: 3.6
+#| fig-cap: "Share of the 20 confounders each lasso retains."
+mech <- data.frame(
+  lasso = factor(c("lasso of Y on X alone", "naive: Y on D and X", "lasso of D on X"),
+                 levels = c("lasso of Y on X alone", "naive: Y on D and X", "lasso of D on X")),
+  found = c(mean(R[,"found_y"]), mean(R[,"found_naive"]), mean(R[,"found_d"])) / n_conf)
+
+ggplot(mech, aes(found, lasso, fill = lasso)) +
+  geom_col(width = 0.58) +
+  geom_text(aes(label = sprintf("%.0f%%", 100*found)), hjust = -0.2,
+            size = 3.6, fontface = "bold", colour = ink) +
+  scale_fill_manual(values = c("lasso of Y on X alone" = unname(pal["blue"]),
+                               "naive: Y on D and X" = unname(pal["orange"]),
+                               "lasso of D on X" = unname(pal["aqua"]))) +
+  scale_x_continuous(labels = scales::percent, limits = c(0, 1.12), expand = c(0, 0)) +
+  labs(title = "Adding D to the regression makes the confounders look redundant",
+       subtitle = "The same 20 confounders, three different lassos",
+       x = "confounders retained", y = NULL)
+```
+
+## Table
+
+```{r part2-table}
+#| echo: false
+tbl(data.frame(
+  estimator = c("no controls", "naive lasso", "post-double-selection", "oracle (true 20)"),
+  mean = colMeans(R[, 1:4]),
+  bias = colMeans(R[, 1:4]) - tau,
+  sd   = apply(R[, 1:4], 2, sd),
+  row.names = NULL),
+  caption = "60 replications. Truth is 1.")
+```
+
+:::
+
+The truth is $\tau = 1$.
+
+```{r part2-diag}
+#| echo: false
+tbl(data.frame(
+  lasso = c("Y on X alone", "naive: Y on D and X", "D on X"),
+  `confounders kept (of 20)` = c(mean(R[,"found_y"]), mean(R[,"found_naive"]), mean(R[,"found_d"])),
+  `null columns kept (of 180)` = c(mean(R[,"null_y"]), mean(R[,"null_naive"]), mean(R[,"null_d"])),
+  check.names = FALSE), digits = 1,
+  caption = "What each lasso retains.")
+```
+
+:::{.callout-important}
+## The mechanism
+In the table above, a lasso of $Y$ on $X$ alone finds all twenty confounders, while the naive estimator keeps about six and carries almost as much bias as using no controls at all.
+
+The reason is that the naive regression has $D$ in it. $D$ is built from the confounders, so once it is in the model it already carries their signal, and the lasso has little left to gain by keeping them. The penalty drops them as redundant for prediction. They are not redundant for $\hat\tau$, and dropping them is omitted variable bias.
+
+Post-double-selection keeps the two jobs separate. One lasso regresses the outcome on $X$, a second regresses the treatment on $X$, and you refit OLS on the **union** of what they select. A confounder only has to survive in one of the two equations, and here the treatment equation catches every one.
+
+This is [Belloni, Chernozhukov and Hansen (2014)](https://doi.org/10.1093/restud/rdt044). It takes three lines to implement, and it moves the bias from `r sprintf("%+.2f", mean(R[,"naive"]) - tau)` to `r sprintf("%+.2f", mean(R[,"pds"]) - tau)`.
+
+:::
+
+PDS pays for this in variance: its standard deviation is larger than the naive estimator's. That is the trade-off from Lecture 3, with the bias term now the one that matters.
+
+# Part 3: a real experiment
+
+## The study
+
+Gerber, A. S., Green, D. P. & Larimer, C. W. (2008), ["Social Pressure and Voter Turnout: Evidence from a Large-Scale Field Experiment,"](https://doi.org/10.1017/S000305540808009X) *APSR* 102(1).
+
+Before the August 2006 Michigan primary, households were mailed a notice listing the recent turnout record of everyone at that address **and of their neighbours**, with a promise to send an updated copy after the election. The question is whether being observed makes you vote.
+
+- 180,002 households, randomised into a control group and four mailing arms
+- $D$ = received the Neighbors mailing
+- $Y$ = validated turnout in the 2006 primary, taken from the state voter file
+- $X$ = sex, age, household size, and turnout in the 2004 primary
+- here we use the Control and Neighbors arms only
+
+## The treatments
+
+The study used four mailings, each making your turnout more visible to someone else than the last. That escalation carries the design's argument about mechanism, so the letters themselves are reproduced below.
+
+::: {.panel-tabset}
+
+### Civic Duty
+
+![The Civic Duty mailing: a pure appeal, with no observation of any kind.](images/civic-duty.png)
+
+### Hawthorne
+
+![The Hawthorne mailing: you are told that researchers are watching, but your record stays private.](images/hawthorne.png)
+
+### Self
+
+![The Self mailing: your own household's turnout record, with a blank box for the coming election.](images/self.png)
+
+### Neighbors
+
+![The Neighbors mailing: your street's turnout records, and a promise to send everyone the updated chart. This is the treatment used below.](images/neighbors.png)
+
+:::
+
+```{r arms}
+#| echo: false
+raw <- readRDS("data/social_slim.rds")   # our extract: control and neighbors only
+arms <- data.frame(
+  mailing = c("Civic Duty", "Hawthorne", "Neighbors"),
+  `what it reveals` = c("nothing", "researchers are watching",
+                        "your street sees your record"),
+  `effect on turnout` = c(0.0179, 0.0257, 0.0813),
+  check.names = FALSE)
+tbl(arms, digits = 4,
+    caption = "Effects against the control group, computed from the full four-arm file.")
+```
+
+Turnout rises as the audience widens, from under two points when nobody is watching to eight when the neighbours are. That pattern is what supports calling the mechanism social pressure rather than information or reminder.
+
+The paper also ran a **Self** condition, between Hawthorne and Neighbors, which is not in the copy of the data distributed with `qss`, so no effect is reported for it above. Everything after this point uses only **Control and Neighbors**, the widest contrast, which is why the estimand below is written for that comparison and not for the ladder as a whole.
+
+## What the study is aiming at
+
+Section 2 used [Slough and Tyson's (2023)](https://doi.org/10.1111/ajps.12742) decomposition of a study into $\mathcal{E} = \{m, (\omega', \omega''), \theta\}$. Applying it here before touching an estimator:
+
+| | |
+|---|---|
+| **Setting** $\theta$ | registered voters in Michigan households, in a low-salience August primary where baseline turnout is around 30% |
+| **Contrast** $(\omega', \omega'')$ | the Neighbors mailing against no mailing |
+| **Measurement strategy** $m$ | turnout validated against the state voter file, not self-reported |
+| **Mechanism** | social pressure: the cost of having your abstention observed by people you live near |
+| **Empirical target** $\tau_m(\omega', \omega'' \mid \theta)$ | the average effect of the Neighbors mailing on validated turnout, over these voters in this election |
+
+The reason to write this down first is the same as in section 2. The empirical target is fixed before any estimator is chosen. Everything we do below with penalties and dictionaries is a decision about *estimation*, and none of it changes what we are estimating.
+
+## Why the picture is different from Part 2
+
+```{mermaid}
+%%| fig-cap: "The experimental case. D has no parents, which is what randomisation looks like in a DAG."
+flowchart LR
+  X["X<br/>pre-treatment covariates"] --> Y["Y<br/>validated turnout"]
+  D["D<br/>Neighbors mailing"] -->|"&tau;"| Y
+  style D fill:#2a78d6,stroke:#1a5aa8,color:#fff
+  style Y fill:#eb6834,stroke:#b8481f,color:#fff
+  style X fill:#f4f4f2,stroke:#8a8a85,color:#0b0b0b
+```
+
+:::{.callout-tip}
+## A note on the notation
+Randomisation is not drawn as a node. Nodes in a DAG are random variables, and randomisation is not one: it is a property of how $D$ was generated. It shows up in the graph as the **absence of any arrow into $D$**, so $D$ has no parents. If you ever see an assignment mechanism drawn as its own node with an arrow into treatment, the graph is saying something different from what the author means.
+:::
+
+The two diagrams differ in exactly one edge. In Part 2, $X \rightarrow D$ was present and the back-door path $D \leftarrow X \rightarrow Y$ had to be blocked. Here that edge is gone, because the experimenters assigned $D$. There is no back-door path left, so **no choice of covariates can bias $\hat\tau$, and none is needed to identify it**. $X$ still affects $Y$, which is the only reason to use it: conditioning on the part of $Y$ that $X$ explains reduces residual variance and therefore the standard error.
+
+Part 2 was therefore about bias, and Part 3 is about precision.
+
+```{r part3-data}
+base <- paste0("https://raw.githubusercontent.com/ddekadt/",
+               "cornell-govt-6039/main/sections/section03/data/")
+dir.create("data", showWarnings = FALSE)
+
+# Download once, then reuse the local copy on later renders.
+if (!file.exists("data/social_slim.rds"))
+  download.file(paste0(base, "social_slim.rds"), "data/social_slim.rds", mode = "wb")
+
+d <- readRDS("data/social_slim.rds")
+nrow(d)
+coef(summary(lm(voted ~ neighbors, data = d)))[2, 1:2] |> round(5)
+```
+
+That is the published result, about 8.1 percentage points, on 229,444 observations.
+
+:::{.callout-warning}
+## One caveat about these standard errors
+GGL randomised **households**, not individuals, so the published analysis clusters by household. The extract we are using does not carry a household identifier, so nothing below is clustered and every standard error on this page is too small in absolute terms. It does not affect the comparison we are making, because all three estimators are understated by the same factor. Do not quote these standard errors as the paper's.
+:::
+
+**At this sample size you do not need any of this.** There are four pre-treatment covariates and a quarter of a million rows. Put them all in an OLS and stop. Penalization is a tool for the regime where $p$ is large relative to $n$.
+
+That regime is easy to reach even with four covariates, because $p$ need not come from a data merge. Functional form alone will produce it.
+
+```{r part3-dictionary}
+make_dictionary <- function(df) {
+  M <- model.matrix(
+    ~ (female + poly(age, 3, raw = TRUE) +
+       factor(cut(age, c(-Inf, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, Inf))) +
+       voted04 + factor(pmin(hhsize, 6)))^2,
+    data = df)[, -1]
+  M[, apply(M, 2, sd) > 0, drop = FALSE]
+}
+```
+
+Age polynomials, age bins, household size as a factor, and every pairwise interaction. Four raw covariates become a dictionary of over a hundred columns, and which of them to keep is now a real question.
+
+Most political science experiments have around a thousand subjects rather than 229,444. Draw subsamples of that size and compare three estimators.
+
+```{r part3-run}
+one_sample <- function(seed, n_sub = 1000) {
+  set.seed(seed)
+  s <- d[sample(nrow(d), n_sub), ]
+  X <- make_dictionary(s); Y <- s$voted; D <- s$neighbors
+
+  dim_ <- coef(summary(lm(Y ~ D)))[2, 1:2]
+  ols  <- coef(summary(lm(Y ~ D + X)))[2, 1:2]
+  u    <- union(select(X, Y), select(X, D))
+  pds  <- if (length(u) == 0) dim_ else coef(summary(lm(Y ~ D + X[, u, drop = FALSE])))[2, 1:2]
+
+  setNames(c(unname(dim_), unname(ols), unname(pds), ncol(X), length(u)),
+           c("dim", "dim_se", "ols", "ols_se", "pds", "pds_se", "p", "k"))
+}
+if (is.null(sims$part3)) {
+  sims$part3 <- t(sapply(1:40, one_sample))
+  saveRDS(sims, sim_file)
+}
+S <- sims$part3
+```
+
+::: {.panel-tabset}
+
+## Precision
+
+```{r part3-plot}
+#| echo: false
+#| fig-height: 4.2
+#| fig-cap: "40 subsamples of 1,000. Dashed line is the full-sample benchmark."
+bench <- coef(lm(voted ~ neighbors, data = d))[2]
+e3 <- data.frame(
+  value = c(S[,"dim"], S[,"ols"], S[,"pds"]),
+  est = rep(c("difference in means", "OLS, full dictionary", "post-double-selection"),
+            each = nrow(S)))
+e3$est <- factor(e3$est, levels = rev(c("difference in means", "OLS, full dictionary",
+                                        "post-double-selection")))
+m3 <- aggregate(value ~ est, e3, mean)
+
+ggplot(e3, aes(value, est)) +
+  geom_vline(xintercept = bench, linetype = "22", colour = ref, linewidth = 0.8) +
+  annotate("text", x = bench, y = Inf, label = "full sample = 0.081", colour = ref,
+           size = 3.2, fontface = "bold", hjust = -0.08, vjust = 1.6) +
+  geom_point(aes(colour = est), alpha = 0.4, size = 1.7,
+             position = position_jitter(height = 0.12, seed = 2)) +
+  geom_point(data = m3, aes(value, est), size = 3.6, shape = 21,
+             fill = "white", colour = ink, stroke = 1.1) +
+  scale_colour_manual(values = c("difference in means" = unname(pal["blue"]),
+                                 "OLS, full dictionary" = unname(pal["orange"]),
+                                 "post-double-selection" = unname(pal["aqua"]))) +
+  coord_cartesian(clip = "off") +
+  labs(title = "All three estimators land on the benchmark",
+       subtitle = "Estimated effect of the Neighbors mailing, 40 subsamples of 1,000. Precision is in the next tab.",
+       x = "estimated effect on turnout", y = NULL) +
+  theme(plot.margin = margin(18, 12, 6, 6))
+```
+
+## Standard errors
+
+```{r part3-se}
+#| echo: false
+#| fig-height: 3.4
+#| fig-cap: "Mean standard error. Lower is better."
+se3 <- data.frame(
+  est = factor(c("difference in means", "OLS, full dictionary", "post-double-selection"),
+               levels = rev(c("difference in means", "OLS, full dictionary", "post-double-selection"))),
+  se = c(mean(S[,"dim_se"]), mean(S[,"ols_se"]), mean(S[,"pds_se"])))
+
+ggplot(se3, aes(se, est, fill = est)) +
+  geom_col(width = 0.56) +
+  geom_text(aes(label = sprintf("%.4f", se)), hjust = -0.15, size = 3.5,
+            fontface = "bold", colour = ink) +
+  scale_fill_manual(values = c("difference in means" = unname(pal["blue"]),
+                               "OLS, full dictionary" = unname(pal["orange"]),
+                               "post-double-selection" = unname(pal["aqua"]))) +
+  scale_x_continuous(limits = c(0, max(se3$se)*1.22), expand = c(0, 0)) +
+  labs(title = "Post-double-selection gives the smallest standard error of the three",
+       subtitle = "Same 40 subsamples of 1,000",
+       x = "mean standard error", y = NULL)
+```
+
+## Table
+
+```{r part3-table}
+#| echo: false
+tbl(data.frame(
+  estimator = c("difference in means", "OLS, full dictionary", "post-double-selection"),
+  `mean estimate` = c(mean(S[,"dim"]), mean(S[,"ols"]), mean(S[,"pds"])),
+  `mean SE` = c(mean(S[,"dim_se"]), mean(S[,"ols_se"]), mean(S[,"pds_se"])),
+  `columns used` = c(0, S[1,"p"], mean(S[,"k"])),
+  check.names = FALSE),
+  caption = sprintf("Dictionary has %d columns; PDS keeps %.1f on average.", S[1,"p"], mean(S[,"k"])))
+```
+
+:::
+
+:::{.callout-note}
+## What to draw out
+All three point estimates are close to the full-sample benchmark of 0.081. With $D$ assigned at random there is no confounding, so none of these estimators is biased and the choice of covariates does not move the point estimate. Part 2 was a different situation.
+
+What covariates buy here is precision. Throwing the whole dictionary into OLS produces a **larger** standard error than the raw difference in means, because it spends more than a hundred degrees of freedom on a thousand observations. PDS keeps about thirteen columns and gives the smallest standard error of the three.
+
+The gain is real but modest, a few percent, and worth reporting as such. In an experiment covariate adjustment is a refinement. In the observational setting of Part 2, getting it wrong changed the answer.
+:::
+
+# Part 4: when to use this
+
+**Use it when** $p$ is large relative to $n$ and you need a treatment effect; when your controls come from a wide battery, an administrative merge, or a flexible functional form; when you want covariate choice to be a rule rather than a series of decisions you made while looking at results.
+
+**But $p$ can also be too large.** "Large $p$" is the case the lasso was built for, yet its guarantees are not unconditional. What has to be small is not $p$ itself but the sparsity $s$, the number of genuinely non-zero coefficients, relative to $n / \log p$. The standard consistency results require roughly
+
+$$\frac{s \log p}{n} \longrightarrow 0,$$
+
+so $p$ may be far larger than $n$, which is the whole point, while $s$ may not be large compared with $n/\log p$ ([Bickel, Ritov and Tsybakov 2009](https://doi.org/10.1214/08-AOS620)). Two consequences follow in practice. When $p > n$ the lasso can select at most $n$ columns, whatever the truth looks like, which the lecture noted when motivating the elastic net. And if you believe the signal is spread thinly across many columns rather than concentrated in a few, the sparsity assumption is simply wrong and ridge or the elastic net will beat the lasso. That is exactly what the lecture's comparison table reports: the lasso wins there because the truth was built sparse.
+
+There is a second tradition that picks $\lambda$ from theory rather than by cross-validation, and it runs into an awkward problem: the theoretically correct penalty depends on the noise scale $\sigma$, which you do not know. [Square-root lasso](#appendix-square-root-lasso-when-you-do-not-know-how-noisy-y-is) removes that dependence. The appendix explains how, and sets an optional exercise.
+
+
+**Do not use it when** $n$ greatly exceeds $p$ and OLS with all controls is fine, which was the full GGL sample. Do not use it on post-treatment variables: penalization does not protect you from conditioning on a collider, and no amount of cross-validation will tell you that you have.
+
+**Three cautions.**
+
+Never penalize the treatment. Part 1 is what happens to a coefficient inside the penalty.
+
+Standard errors after selection are not valid in the ordinary way. The usual OLS standard errors on the refit are the reason PDS exists: it is constructed so that they are approximately right for $\hat\tau$. Do not report conventional standard errors on the *selected control* coefficients, and do not read the selected set as a finding about which covariates matter. [Lockhart, Taylor, Tibshirani and Tibshirani (2014)](https://doi.org/10.1214/13-AOS1175), on the lecture's reference slide, is where this literature starts.
+
+The lasso picks arbitrarily among correlated columns. For controls this is harmless, since what you want is their combined predictive content and not their identity. For interpretation it is a serious problem. If a seminar question is "why did it select county income and not county education", the answer is that they were correlated and the lasso chose one.
+
+# Exercise for today
+
+Re-run Part 2 with `b_conf <- 1.5`, so the confounders strongly predict the outcome. Does the naive estimator's bias survive? Explain the result in terms of which lasso is doing the work.
+
+# Appendix: square-root lasso, when you do not know how noisy $Y$ is
+
+Everything above tuned $\lambda$ by cross-validation, which treats it as a prediction hyperparameter. There is a second tradition that picks $\lambda$ from theory instead, and it runs into a problem worth understanding.
+
+The penalty level that the theory justifies for the ordinary lasso,
+
+$$\hat\beta = \arg\min_\beta \left\{ \tfrac{1}{2n}\lVert Y - X\beta \rVert_2^2 + \lambda \lVert \beta \rVert_1 \right\},$$
+
+scales as
+
+$$\lambda \asymp \sigma \sqrt{\frac{\log p}{n}}.$$
+
+It depends on $\sigma$, the standard deviation of the regression errors, which you do not know. You are left estimating $\sigma$ before you can regularise, and estimating $\sigma$ well in high dimensions needs a model you have not fitted yet.
+
+**Square-root lasso** removes the dependence. It replaces the mean squared error in the objective with the root mean squared error:
+
+$$\hat\beta = \arg\min_\beta \left\{ \tfrac{1}{\sqrt{n}} \lVert Y - X\beta \rVert_2 + \lambda \lVert \beta \rVert_1 \right\},$$
+
+and its justified penalty is
+
+$$\lambda \asymp \sqrt{\frac{\log p}{n}},$$
+
+with no $\sigma$ in it. The reason is self-normalisation. The quantity the penalty has to dominate is the score $X'\varepsilon / n$, whose size grows with $\sigma$. Taking the square root of the residual sum of squares divides the score by the residual norm, giving $X'\varepsilon / (\sqrt{n}\lVert\varepsilon\rVert_2)$, and since $\lVert\varepsilon\rVert_2/\sqrt{n} \approx \sigma$, the noise scale cancels. The estimator is also close to scale equivariant: multiply $Y$ by 100 and the loss and the penalty scale together, which is not true of the ordinary lasso objective.
+
+A concrete version of the problem. With $p = 1000$ and $n = 200$, the correct ordinary-lasso penalty is roughly twenty times larger when the residual standard deviation is 20 than when it is 1. The square-root lasso uses the same calibrated $\lambda$ in both cases.
+
+**Where this matters.** The gain is not in prediction. With cross-validation available and prediction as the goal, the ordinary lasso is generally fine, and square-root lasso is not inherently the better predictor. Its value is in high-dimensional *estimation and inference*, where you want a penalty chosen by theory so that guarantees such as $\lVert\hat\beta - \beta_0\rVert_2 = O_p(\sqrt{s \log p / n})$ hold without first knowing $\sigma$. That is why it appears throughout the literature Part 2 came from: post-double-selection, debiased machine learning and high-dimensional treatment-effect estimation all make use of it. The ordinary lasso needs to know how noisy $Y$ is before it can calibrate its regularisation; square-root lasso normalises by the observed residual noise instead.
+
+The closely related **scaled lasso** of [Sun and Zhang (2012)](https://doi.org/10.1093/biomet/ass043) reaches the same place from a different direction, by estimating $\sigma$ and $\beta$ jointly. In R, `hdm::rlasso()` fits the square-root lasso with the theoretical penalty, and `hdm::rlassoEffect()` is the packaged version of the Part 2 estimator.
+
+*Reading.* [Belloni, Chernozhukov and Wang (2011)](https://doi.org/10.1093/biomet/asr043) is the original; [Belloni, Chernozhukov and Wang (2014)](https://doi.org/10.1214/14-AOS1204) extends it to nonparametric regression; [Sun and Zhang (2012)](https://doi.org/10.1093/biomet/ass043) is the scaled-lasso counterpart.
+
+::: {.callout-important collapse="true"}
+## Exercise with a star, for those with time to spare
+
+Show for yourself that the ordinary lasso's penalty has to track the noise scale, which is the problem square-root lasso solves.
+
+Simulate $n = 200$, $p = 1000$, with five non-zero coefficients equal to 1, and draw the errors at three noise levels, $\sigma \in \{1, 5, 20\}$. At each one, pick $\lambda$ by cross-validation with `cv.glmnet(..., standardize = FALSE)` and record three numbers: the selected `lambda.min`, that value divided by $\sigma$, and $\sqrt{\log p / n}$.
+
+You should find that the selected $\lambda$ moves by more than an order of magnitude across the three noise levels, while $\lambda / \sigma$ stays in a narrow band close to $\sqrt{\log p / n}$. That band is the square-root lasso penalty. Cross-validation recovers the $\sigma$ dependence empirically, one dataset at a time, while the square-root lasso has it removed from the objective.
+
+Two questions to think about afterwards. First, cross-validation got you there without knowing $\sigma$, so what did the square-root lasso buy? The answer is about inference rather than prediction. Second, if you have `hdm` installed, compare against `hdm::rlasso(X, y)` and check whether its penalty moves with $\sigma$ at all.
+:::
+
+# References
+
+Belloni, A., Chernozhukov, V. & Hansen, C. (2014) "Inference on Treatment Effects after Selection among High-Dimensional Controls." *Review of Economic Studies* 81(2): 608-650. doi:[10.1093/restud/rdt044](https://doi.org/10.1093/restud/rdt044)
+
+Belloni, A., Chernozhukov, V. & Wang, L. (2011) "Square-Root Lasso: Pivotal Recovery of Sparse Signals via Conic Programming." *Biometrika* 98(4): 791-806. doi:[10.1093/biomet/asr043](https://doi.org/10.1093/biomet/asr043)
+
+Belloni, A., Chernozhukov, V. & Wang, L. (2014) "Pivotal Estimation via Square-Root Lasso in Nonparametric Regression." *Annals of Statistics* 42(2): 757-788. doi:[10.1214/14-AOS1204](https://doi.org/10.1214/14-AOS1204)
+
+Bickel, P. J., Ritov, Y. & Tsybakov, A. B. (2009) "Simultaneous Analysis of Lasso and Dantzig Selector." *Annals of Statistics* 37(4): 1705-1732. doi:[10.1214/08-AOS620](https://doi.org/10.1214/08-AOS620)
+
+Gerber, A. S., Green, D. P. & Larimer, C. W. (2008) "Social Pressure and Voter Turnout: Evidence from a Large-Scale Field Experiment." *American Political Science Review* 102(1): 33-48. doi:[10.1017/S000305540808009X](https://doi.org/10.1017/S000305540808009X)
+
+Lockhart, R., Taylor, J., Tibshirani, R. J. & Tibshirani, R. (2014) "A Significance Test for the Lasso." *Annals of Statistics* 42(2): 413-468. doi:[10.1214/13-AOS1175](https://doi.org/10.1214/13-AOS1175)
+
+Slough, T. & Tyson, S. A. (2023) "External Validity and Meta-Analysis." *American Journal of Political Science* 67(2): 440-455. doi:[10.1111/ajps.12742](https://doi.org/10.1111/ajps.12742)
+
+Sun, T. & Zhang, C.-H. (2012) "Scaled Sparse Linear Regression." *Biometrika* 99(4): 879-898. doi:[10.1093/biomet/ass043](https://doi.org/10.1093/biomet/ass043)
