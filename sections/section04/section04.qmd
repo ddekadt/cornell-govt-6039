@@ -1,0 +1,352 @@
+---
+title: "Section 4: From Coefficients to Quantities of Interest"
+subtitle: "GOVT 6039 | Fall 2026 | Discussion section, 24 September 2026"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    embed-resources: true
+    code-fold: show
+    code-summary: "code"
+    code-tools: true
+    theme: cosmo
+    html-math-method: mathjax
+    fig-width: 7
+    fig-height: 4
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+```{r setup}
+#| include: false
+knitr::opts_chunk$set(fig.align = "center", dpi = 140)
+library(ggplot2)
+library(DT)
+library(MASS)
+
+## validated categorical palette (blue / orange / aqua), neutral for reference marks
+pal  <- c(blue = "#2a78d6", orange = "#eb6834", aqua = "#1baf7a", yellow = "#eda100")
+ink  <- "#0b0b0b"; ink2 <- "#52514e"; ref <- "#8a8a85"
+
+theme_set(
+  theme_minimal(base_size = 12) +
+    theme(panel.grid.minor = element_blank(),
+          panel.grid.major = element_line(colour = "grey92", linewidth = 0.3),
+          axis.title = element_text(colour = ink2, size = 10),
+          plot.title = element_text(colour = ink, face = "bold", size = 13),
+          plot.subtitle = element_text(colour = ink2, size = 10),
+          plot.caption = element_text(colour = ink2, size = 9, hjust = 0),
+          legend.position = "none",
+          plot.title.position = "plot")
+)
+
+tbl <- function(df, caption = NULL, digits = 4) {
+  num <- sapply(df, is.numeric)
+  df[num] <- lapply(df[num], round, digits)
+  datatable(df, rownames = FALSE, caption = caption,
+            options = list(dom = "t", ordering = FALSE, paging = FALSE,
+                           columnDefs = list(list(className = "dt-right", targets = "_all"))))
+}
+
+pp <- function(x, d = 1) sprintf("%.*f", d, 100 * x)
+```
+
+Lecture 7 fitted a logit. Lecture 8 put a standard error on it. Together they produce this table:
+
+```{r headline}
+#| echo: false
+knitr::kable(data.frame(term = c("(Intercept)", "oil", "lgdp"),
+                        Estimate = c(-15.329, -1.560, 1.851),
+                        `Std. Error` = c(2.343, 0.429, 0.273),
+                        check.names = FALSE))
+```
+
+The research question the model was fitted to answer is: **does oil wealth lower the probability that a country is a democracy, and by how much?**
+
+$\hat\beta_{\text{oil}} = -1.560$ is a change in log odds, and the question was not asked in log odds. Converting it to a change in probability takes a further choice, because under a nonlinear link that change depends on where the country already sits on the curve. `glm()` does not make the choice for you, and different choices give different answers. This section is about which one to make.
+
+## How this section runs
+
+Fifty minutes, two teams, laptops open.
+
+| | minutes | what happens |
+|:--|:--|:--|
+| 0 | 4 | Opening estimate. Everyone writes one number on a card, face down. |
+| 1 | 14 | Two teams, two quantities each. |
+| 2 | 9 | The board. |
+| 3 | 12 | Break your own answers. |
+| 4 | 8 | Uncertainty, three ways. |
+| 5 | 3 | Exit ticket. |
+
+Everything below uses only Lectures 6, 7 and 8: maximum likelihood, the logit link, the score, and the Hessian.
+
+# Part 0: the data
+
+The running example is the one from Lecture 7: regime type for 205 countries, `y = 1` for democracy, with log GDP per capita and an oil-producer indicator. The data-generating process is known, so every number below can be checked against a truth.
+
+```{r data}
+simulate_countries <- function(n = 205, seed = 260,
+                               beta = c(-16.6, -1.5, 2.0)) {
+  set.seed(seed)
+  lgdp <- pmin(pmax(rnorm(n, 8.0, 1.0), 5.8), 10.6)
+  oil  <- rbinom(n, 1, 0.25)
+  eta  <- beta[1] + beta[2] * oil + beta[3] * lgdp
+  data.frame(y = rbinom(n, 1, plogis(eta)), oil = oil, lgdp = lgdp)
+}
+
+# Drop the instructor's copy in as data/countries.rds to use it instead.
+countries <- if (file.exists("data/countries.rds")) readRDS("data/countries.rds") else
+             simulate_countries()
+
+head(countries, 4)
+c(n = nrow(countries), democracies = sum(countries$y), oil = sum(countries$oil))
+```
+
+```{r fit}
+logit <- glm(y ~ oil + lgdp, data = countries, family = binomial,
+             control = glm.control(epsilon = 1e-10))
+round(summary(logit)$coefficients[, 1:2], 3)
+```
+
+```{r fit-ll}
+#| echo: false
+ll1 <- as.numeric(logLik(logit))
+ll0 <- as.numeric(logLik(glm(y ~ 1, data = countries, family = binomial)))
+cat(sprintf("log-likelihood at beta-hat: %.2f   (intercept only: %.2f)\n", ll1, ll0))
+```
+
+:::{.callout-warning}
+## These are not exactly the slide numbers
+Lecture 7 slide 19 reports $\hat\beta = (-15.329, -1.560, 1.851)$. The chunk above reconstructs the lecture's DGP, with the same $\beta = (-16.6, -1.5, 2.0)$, the same $n$ and the same shape, but not the instructor's seed, so it lands at `r sprintf("(%.3f, %.3f, %.3f)", coef(logit)[1], coef(logit)[2], coef(logit)[3])`. Nothing below depends on the difference. If you get the original draw, save it as `data/countries.rds` and the document re-renders against it.
+:::
+
+Three estimators of $P(Y_i = 1 \mid x_i)$ fitted to the same data, which is where Lecture 7 left off:
+
+```{r curves}
+#| echo: false
+#| fig-height: 4.2
+#| fig-cap: "Fitted Pr(democracy) against log GDP per capita at oil = 0, three estimators, n = 205. Grey points are binned means; the dashed line is the true DGP."
+lpm    <- lm(y ~ oil + lgdp, data = countries)
+probit <- glm(y ~ oil + lgdp, data = countries, family = binomial(link = "probit"))
+
+grid <- data.frame(lgdp = seq(5.8, 10.6, length.out = 250), oil = 0)
+curv <- rbind(
+  data.frame(grid, p = predict(lpm, grid), model = "LPM"),
+  data.frame(grid, p = predict(logit, grid, type = "response"), model = "Logit"),
+  data.frame(grid, p = predict(probit, grid, type = "response"), model = "Probit"))
+truth <- data.frame(grid, p = plogis(-16.6 + 2.0 * grid$lgdp))
+
+bins <- subset(countries, oil == 0)
+bins$b <- cut(bins$lgdp, breaks = seq(5.8, 10.6, by = 0.4))
+bm <- aggregate(cbind(y, lgdp) ~ b, data = bins, FUN = mean)
+
+ggplot(curv, aes(lgdp, p, colour = model)) +
+  geom_hline(yintercept = c(0, 1), colour = ref, linewidth = 0.3) +
+  geom_line(data = truth, aes(lgdp, p), inherit.aes = FALSE,
+            linetype = "dashed", colour = ref, linewidth = 0.5) +
+  geom_point(data = bm, aes(lgdp, y), inherit.aes = FALSE,
+             colour = ref, size = 1.6) +
+  geom_line(linewidth = 0.8) +
+  scale_colour_manual(values = unname(pal[c("blue", "orange", "aqua")])) +
+  annotate("text", x = 10.35, y = c(1.16, 0.90, 0.80),
+           label = c("LPM", "Logit", "Probit"), hjust = 1, size = 3.3,
+           colour = unname(pal[c("blue", "orange", "aqua")])) +
+  labs(x = "Log GDP per capita", y = "Pr(democracy)") +
+  coord_cartesian(ylim = c(-0.25, 1.25))
+```
+
+# Part 1: two teams, four quantities
+
+Same data, same fitted model. Each team computes two of the four quantities below, then writes both on the board: the number, and one sentence saying what it means, with units. Twelve minutes of work, two minutes to write.
+
+::: {.panel-tabset}
+
+## Team 1
+
+### Quantity 1: the linear probability model
+
+Fit the LPM and report the coefficient on `oil`, with heteroskedasticity-robust standard errors (Lecture 7 slide 7 gives the reason).
+
+```r
+library(estimatr)
+lpm <- lm_robust(y ~ oil + lgdp, data = countries)
+```
+
+On the board: *"Holding income constant, oil states are ___ percentage points less likely to be democracies."*
+
+### Quantity 2: the average case
+
+Build one hypothetical country at the mean of `lgdp`. Predict its probability of democracy twice, once as an oil state and once not, and take the difference.
+
+```r
+avg <- data.frame(lgdp = mean(countries$lgdp))
+p1  <- predict(logit, transform(avg, oil = 1), type = "response")
+p0  <- predict(logit, transform(avg, oil = 0), type = "response")
+p1 - p0
+```
+
+On the board: *"For the average country, being an oil state lowers the probability of democracy by ___ percentage points."*
+
+Before you sit down, say which of your two numbers you would put in a paper, and why.
+
+## Team 2
+
+### Quantity 1: the odds ratio
+
+Exponentiate the logit coefficient on `oil`.
+
+```r
+exp(coef(logit)["oil"])
+```
+
+On the board: *"Being an oil state multiplies the odds of democracy by ___."*
+
+### Quantity 2: the observed values
+
+Do not build a hypothetical country. Take the 205 countries you have, set every one to `oil = 1` and predict; set every one to `oil = 0` and predict; average the 205 differences.
+
+```r
+d1 <- transform(countries, oil = 1)
+d0 <- transform(countries, oil = 0)
+mean(predict(logit, d1, type = "response") -
+     predict(logit, d0, type = "response"))
+```
+
+On the board: *"Averaged across the countries in the sample, being an oil state lowers the probability of democracy by ___ percentage points."*
+
+Before you sit down, say which of your two numbers you would put in a paper, and why.
+
+:::
+
+
+# Part 2: the board
+
+Fill this in as the teams report.
+
+| Team | Quantity | Number | Units |
+|:--|:--|:--|:--|
+| 1 | LPM coefficient on `oil` | | |
+| 1 | Average case (MEM) | | |
+| 2 | Odds ratio, `exp(beta_oil)` | | |
+| 2 | Observed values (AME) | | |
+
+Two questions to the room, in this order:
+
+1. Which of these four answers the research question as it was stated?
+2. Which of them are on a scale that lets you compare them with each other?
+
+
+# Part 3: break your own answers
+
+Each team now attacks its own two quantities. Twelve minutes, then ninety seconds per report. Attack your own number rather than defending it.
+
+::: {.panel-tabset}
+
+## Team 1
+
+### Where does the LPM go?
+
+Your model can predict a probability. Find out whether it always predicts a *probability*.
+
+```r
+p_lpm <- fitted(lm(y ~ oil + lgdp, data = countries))
+c(outside_01 = sum(p_lpm < 0 | p_lpm > 1), min = min(p_lpm), max = max(p_lpm))
+```
+
+Report to the room: under what conditions does this stop mattering?
+
+
+### How average is the average case?
+
+You built one country. Build four, and see how much the answer moves.
+
+```r
+at <- function(v) {
+  a <- data.frame(lgdp = v)
+  unname(predict(logit, transform(a, oil = 1), type = "response") -
+         predict(logit, transform(a, oil = 0), type = "response"))
+}
+c(mean   = at(mean(countries$lgdp)),
+  median = at(median(countries$lgdp)),
+  q25    = at(quantile(countries$lgdp, 0.25)),
+  q75    = at(quantile(countries$lgdp, 0.75)))
+```
+
+Then the harder version. Your recipe was "set every covariate to its mean". Suppose the model also controlled for a binary `former_colony` with a sample mean of 0.62. What country is that?
+
+Report to the room: what population does your number describe?
+
+
+## Team 2
+
+### One odds ratio, many effects
+
+Your odds ratio is a single number. Show the room how many changes in probability it is consistent with, by evaluating the same fitted model across the range of income.
+
+```r
+g <- expand.grid(lgdp = seq(5.8, 10.6, length.out = 200), oil = c(0, 1))
+g$p <- predict(logit, g, type = "response")
+w <- reshape(g, timevar = "oil", idvar = "lgdp", direction = "wide")
+w$delta <- w$p.1 - w$p.0
+```
+
+Report to the room: is there a question for which the odds ratio is the right answer?
+
+
+### Is the SE of an average the average of the SEs?
+
+You averaged 205 numbers, each with its own uncertainty. Test the obvious guess.
+
+```r
+X   <- model.matrix(logit)
+w_i <- fitted(logit) * (1 - fitted(logit))
+V   <- solve(t(X) %*% diag(w_i) %*% X)       # Lecture 8, slide 7
+```
+
+Get a standard error on each country's difference, and one on their average, and compare.
+
+Report to the room: what would have to be true for the naive guess to hold?
+
+
+:::
+
+# Part 4: uncertainty, three ways
+
+Eight minutes. Both teams do the same three steps, each on one of their own quantities from Part 1. This is Lecture 8 applied to something the coefficient table does not print.
+
+**One.** Rebuild the variance of $\hat\beta$ by hand, from slide 7, and check it against `summary()`.
+
+```r
+rbind(hand = sqrt(diag(V)), glm = summary(logit)$coefficients[, 2])
+```
+
+**Two.** Draw 2,000 values of $\tilde\beta$ from the sampling distribution on Lecture 8 slide 6, $\hat\beta \sim N(\hat\beta, [-H(\hat\beta)]^{-1})$.
+
+```r
+set.seed(1)
+B <- MASS::mvrnorm(2000, coef(logit), V)
+```
+
+**Three.** Recompute your quantity on each of the 2,000 draws, and take the 2.5th and 97.5th percentiles.
+
+
+# Exit ticket
+
+One line, on a card, handed in before you leave:
+
+> **What does `glm()`'s coefficient table tell you, and what does it not?**
+
+
+# References
+
+Arel-Bundock, V. (2026) *Model to Meaning: How to Interpret Statistical Models Using R*. CRC Press. <https://marginaleffects.com>
+
+Hanmer, M. J. & Kalkan, K. O. (2013) "Behind the Curve: Clarifying the Best Approach to Calculating Predicted Probabilities and Marginal Effects from Limited Dependent Variable Models." *American Journal of Political Science* 57(1): 263-277. doi:[10.1111/j.1540-5907.2012.00602.x](https://doi.org/10.1111/j.1540-5907.2012.00602.x)
+
+King, G., Tomz, M. & Wittenberg, J. (2000) "Making the Most of Statistical Analyses: Improving Interpretation and Presentation." *American Journal of Political Science* 44(2): 347-361. doi:[10.2307/2669316](https://doi.org/10.2307/2669316)
+
+Mood, C. (2010) "Logistic Regression: Why We Cannot Do What We Think We Can Do, and What We Can Do About It." *European Sociological Review* 26(1): 67-82. doi:[10.1093/esr/jcp006](https://doi.org/10.1093/esr/jcp006)
+
+Rodríguez, G. *Generalized Linear Models*, Princeton lecture notes, 3.1-3.7. <https://grodri.github.io/glms>
