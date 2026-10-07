@@ -1,6 +1,6 @@
 ---
 title: "Section 5: Interpreting categorical and count models"
-subtitle: "GOVT 6039 · Discussion section, 7 October 2026 · Lecture 11"
+subtitle: "GOVT 6039 · Lecture 11 practice"
 date: 2026-10-07
 format:
   html:
@@ -67,23 +67,15 @@ count_means <- predict(pois_fit, count_new, type = "response")
 
 ```
 
-The three cases use simulated data. Bring a calculator if useful. Round numerical answers to two or three decimal places.
+The three cases use simulated data. Round numerical answers to two or three decimal places.
 
 **Focus:** cumulative odds versus category probabilities; multinomial log odds versus probability changes; count ratios versus count differences; and what overdispersion changes.
 
-| Clock | Activity | Mode |
-|:--|:--|:--|
-| 0–4 min | Choose a model | Individual, then discuss |
-| 4–17 min | A. Ordered trust | Pairs, then discuss |
-| 17–31 min | B. Participation choice | Pairs, then discuss |
-| 31–46 min | C. Protest counts | Groups of three, then discuss |
-| 46–50 min | Exit questions | Individual, collect |
-
-## 0–4 min · Choose the outcome model
+## Choose the outcome model
 
 Choose **ordered logit**, **multinomial logit**, or a **count model** for each outcome, and give one reason: (1) trust in city government: low, medium, high; (2) one intended action: no action, petition, or rally; (3) number of protests in a district during one year.
 
-## 4–17 min · A. Ordered trust
+## A. Ordered trust
 
 A survey asks residents to rate trust in city government as **Low < Medium < High**. `visit = 1` means a resident attended a city information session; `engagement` is a standardized prior civic-engagement score. The fitted ordered logit uses
 
@@ -101,14 +93,12 @@ knitr::kable(
   caption = "Predicted category probabilities for four residents")
 ```
 
-**In pairs, 7 minutes.**
-
 1. At fixed engagement, what does the positive `visit` coefficient imply for the odds of **High rather than Low or Medium**? Compute the odds ratio.
 2. At engagement = -1, calculate the visit contrast for **each** category's probability. Repeat for Medium at engagement = +1. Does a positive coefficient guarantee that the probability of Medium rises?
 3. Why do the three probability changes at any given engagement sum to zero? Explain why the coefficient is **not** the change in `P(High)`.
 4. What is held fixed? Does the fitted contrast, by itself, establish a causal effect of attending the session?
 
-## 17–31 min · B. Unordered participation choice
+## B. Unordered participation choice
 
 Residents choose **one** response to a proposed permit rule: No action, Petition, or Rally. `permit = 1` denotes the new-rule setting. **No action** is the base category.
 
@@ -130,14 +120,12 @@ knitr::kable(
   caption = "Predicted probabilities at each permit setting")
 ```
 
-**In pairs, 8 minutes.**
-
 1. Translate the `permit` coefficient for Petition into a sentence about **Petition versus No action** odds. Calculate the ratio.
 2. Does the **Petition probability** move in the same direction as its coefficient? Explain using all three outcomes.
 3. Give the probability change for each outcome. Check that the three changes sum to zero.
 4. If Petition and Rally were nearly identical substitutes, which assumption of multinomial logit would deserve scrutiny? State the assumption using an odds ratio.
 
-## 31–46 min · C. Protest counts
+## C. Protest counts
 
 The outcome is the number of protests in a district-year. `outreach = 1` indicates a civic outreach network; `pop_z` is standardized district population. Poisson, quasi-Poisson, and negative binomial (NB) models are fit to the same simulated observations. All three use $\log(\mu_i)=x_i^\top\beta$.
 
@@ -155,16 +143,14 @@ knitr::kable(count_table,
 
 At `pop_z = 0`, Poisson predicts **`r sprintf('%.3f', count_means[1])`** protests when `outreach = 0` and **`r sprintf('%.3f', count_means[2])`** when `outreach = 1`. The quasi-Poisson dispersion estimate is **`r sprintf('%.2f', summary(quasi_fit)$dispersion)`**. The NB size parameter is **`r sprintf('%.2f', nb_fit$theta)`**.
 
-**In groups of three, 9 minutes.**
-
 1. Interpret the Poisson outreach coefficient as a ratio of expected counts. Compute the ratio. Then calculate the predicted **count difference** at `pop_z = 0`.
 2. Would the predicted count difference be the same in a more populous district? Explain without refitting.
 3. Compare Poisson and quasi-Poisson estimates and standard errors. What does dispersion greater than one suggest? What does quasi-Poisson change?
 4. For NB, write the conditional variance at mean $\mu=2$ using the estimated $\theta$. Compare it with the Poisson variance at the same mean. Can the NB outreach coefficient be interpreted with the same exponential rule?
 
-## 46–50 min · Exit questions
+## Check your interpretation
 
-Write one sentence for each question. Submit your answers before leaving.
+Answer each question briefly.
 
 1. An ordered-logit coefficient is positive. Must the middle-category probability increase? Why?
 2. A multinomial coefficient for Petition versus No action is negative. Must `P(Petition)` fall? Why?

@@ -1,0 +1,372 @@
+---
+title: "Section 5: Interpreting categorical and count models — worked solutions"
+subtitle: "GOVT 6039 · Lecture 11 practice"
+date: 2026-10-07
+params:
+  solutions: true
+format:
+  html:
+    embed-resources: true
+    toc: false
+  pdf:
+    documentclass: article
+    geometry: margin=0.72in
+    fontsize: 10pt
+    colorlinks: true
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| include: false
+set.seed(6039)
+
+# Case A: ordered trust in a city government.
+n_o <- 2400
+engagement <- rnorm(n_o)
+visit <- rbinom(n_o, 1, .5)
+latent <- .8 * visit + .7 * engagement + rlogis(n_o)
+trust <- cut(latent, c(-Inf, -.5, 1, Inf),
+             labels = c("Low", "Medium", "High"), ordered_result = TRUE)
+ordered_data <- data.frame(trust, visit, engagement)
+ordered_fit <- MASS::polr(trust ~ visit + engagement,
+                          data = ordered_data, Hess = TRUE)
+ordered_new <- data.frame(visit = c(0, 1, 0, 1),
+                          engagement = c(-1, -1, 1, 1))
+ordered_prob <- as.data.frame(predict(ordered_fit, ordered_new, type = "probs"))
+
+# Case B: unordered participation choice after a permit rule.
+n_m <- 6000
+permit <- rbinom(n_m, 1, .5)
+scores <- cbind(1,
+                exp(log(.35/.25) - .4 * permit),
+                exp(log(.4/.25) - 1.4 * permit))
+choice_prob <- scores / rowSums(scores)
+choice <- factor(apply(choice_prob, 1, function(p) sample(1:3, 1, prob = p)),
+                 levels = 1:3, labels = c("No action", "Petition", "Rally"))
+multi_data <- data.frame(choice, permit)
+multi_fit <- nnet::multinom(choice ~ permit, data = multi_data, trace = FALSE)
+multi_prob <- as.data.frame(predict(multi_fit,
+                                    data.frame(permit = c(0, 1)),
+                                    type = "probs"))
+
+# Case C: district protest counts.
+n_c <- 3000
+outreach <- rbinom(n_c, 1, .5)
+pop_z <- rnorm(n_c)
+mu <- exp(log(1.4) + .55 * outreach + .35 * pop_z)
+protests <- rnbinom(n_c, mu = mu, size = 1.1)
+count_data <- data.frame(protests, outreach, pop_z)
+pois_fit <- glm(protests ~ outreach + pop_z, data = count_data,
+                family = poisson)
+quasi_fit <- glm(protests ~ outreach + pop_z, data = count_data,
+                 family = quasipoisson)
+nb_fit <- MASS::glm.nb(protests ~ outreach + pop_z, data = count_data)
+count_new <- data.frame(outreach = c(0, 1), pop_z = 0)
+count_means <- predict(pois_fit, count_new, type = "response")
+count_means_nb <- predict(nb_fit, count_new, type = "response")
+count_off <- transform(count_data, outreach = 0)
+count_on <- transform(count_data, outreach = 1)
+count_ape <- mean(predict(pois_fit, count_on, type = "response") -
+                  predict(pois_fit, count_off, type = "response"))
+
+solution <- function(body) {
+  if (isTRUE(params$solutions)) {
+    cat("\n::: {.callout-tip title=\"Worked solution\"}\n\n",
+        body, "\n\n:::\n", sep = "")
+  }
+}
+```
+
+```{r}
+#| results: asis
+if (isTRUE(params$solutions)) {
+  cat("**Worked solutions.**\n")
+} else {
+  cat("Use the estimates and predictions on these pages. No software is needed.\n")
+}
+```
+
+The three cases use simulated data. Round numerical answers to two or three decimal places.
+
+**Focus:** cumulative odds versus category probabilities; multinomial log odds versus probability changes; count ratios versus count differences; and what overdispersion changes.
+
+## Choose the outcome model
+
+Choose **ordered logit**, **multinomial logit**, or a **count model** for each outcome, and give one reason: (1) trust in city government: low, medium, high; (2) one intended action: no action, petition, or rally; (3) number of protests in a district during one year.
+
+```{r}
+#| results: asis
+solution(paste0(
+  "1. **Trust: ordered logit.** We know Low $<$ Medium $<$ High, but we do not know whether the Low-to-Medium gap equals the Medium-to-High gap. Ordered logit uses the ranking without treating the labels as equally spaced numbers.\n\n",
+  "2. **Participation: multinomial logit.** No action, Petition, and Rally are different choices, but there is no single numerical ranking that all three must follow. A multinomial model estimates the probability of each choice, using one as the reference.\n\n",
+  "3. **Protests: a count model.** The outcome can be 0, 1, 2, and so on. A count model respects that lower bound and can relate predictors to the expected number of protests. The Poisson model is a starting point; its mean-variance restriction should be checked.\n\n",
+  "Coding trust as 1, 2, 3 and using OLS would impose equal spacing. Turning the protest total into any/none would discard how many protests occurred."
+))
+```
+
+## A. Ordered trust
+
+A survey asks residents to rate trust in city government as **Low < Medium < High**. `visit = 1` means a resident attended a city information session; `engagement` is a standardized prior civic-engagement score. The fitted ordered logit uses
+
+$$P(Y\le j\mid x)=\operatorname{logit}^{-1}(\zeta_j-x^\top\beta).$$
+
+The coefficient on `visit` is **`r sprintf('%.3f', coef(ordered_fit)['visit'])`**; the coefficient on `engagement` is **`r sprintf('%.3f', coef(ordered_fit)['engagement'])`**. Estimated cutpoints are **`r sprintf('%.3f', ordered_fit$zeta[1])`** and **`r sprintf('%.3f', ordered_fit$zeta[2])`**. The cutpoints absorb the intercept.
+
+```{r}
+knitr::kable(
+  data.frame(Engagement = c("-1", "-1", "+1", "+1"),
+             Visit = ordered_new$visit,
+             Low = sprintf("%.3f", ordered_prob$Low),
+             Medium = sprintf("%.3f", ordered_prob$Medium),
+             High = sprintf("%.3f", ordered_prob$High)),
+  caption = "Predicted category probabilities for four residents")
+```
+
+1. At fixed engagement, what does the positive `visit` coefficient imply for the odds of **High rather than Low or Medium**? Compute the odds ratio.
+2. At engagement = -1, calculate the visit contrast for **each** category's probability. Repeat for Medium at engagement = +1. Does a positive coefficient guarantee that the probability of Medium rises?
+3. Why do the three probability changes at any given engagement sum to zero? Explain why the coefficient is **not** the change in `P(High)`.
+4. What is held fixed? Does the fitted contrast, by itself, establish a causal effect of attending the session?
+
+```{r}
+#| results: asis
+dlo <- ordered_prob[2, ] - ordered_prob[1, ]
+dhi <- ordered_prob[4, ] - ordered_prob[3, ]
+ob <- coef(ordered_fit)
+oz <- ordered_fit$zeta
+oeta <- ordered_new$visit * ob["visit"] +
+  ordered_new$engagement * ob["engagement"]
+oc1 <- plogis(oz[1] - oeta)
+oc2 <- plogis(oz[2] - oeta)
+solution(paste0(
+  "**1. Derive the odds ratio.** Let $v$ denote visit and $e$ denote engagement. Set ",
+  "$\\eta(v,e)=\\hat\\beta_v v+\\hat\\beta_e e$ and ",
+  "$C_j(v,e)=P(Y\\le j\\mid v,e)=F(\\hat\\zeta_j-\\eta(v,e))$, where ",
+  "$F(t)=(1+e^{-t})^{-1}$. Logistic odds give\n\n",
+  "$$\\log\\frac{P(Y>j\\mid v,e)}{P(Y\\le j\\mid v,e)}=\\eta(v,e)-\\hat\\zeta_j,\\qquad j=1,2.$$\n\n",
+  sprintf(paste0(
+    "Holding $e$ fixed and changing $v:0\\to1$ therefore adds ",
+    "$\\hat\\beta_v=%.3f$ to *both* cumulative log-odds comparisons. ",
+    "For $j=2$, the comparison is High versus Low or Medium:\n\n",
+    "$$\\mathrm{OR}=\\exp(\\hat\\beta_v)=e^{%.3f}=%.3f.$$\n\n"
+  ), ob["visit"], ob["visit"], exp(ob["visit"])),
+  "The inverse odds, at or below $j$ versus above $j$, have ratio ",
+  sprintf("$e^{-%.3f}=%.3f$.\n\n", ob["visit"], exp(-ob["visit"])),
+  "**2. Recover category probabilities before taking differences.** With three ordered categories,\n\n",
+  "$$p_{\\rm Low}=C_1,\\qquad p_{\\rm Medium}=C_2-C_1,\\qquad p_{\\rm High}=1-C_2.$$\n\n",
+  sprintf(paste0(
+    "At engagement $e=-1$, $\\eta(0,-1)=%.3f$ and $\\eta(1,-1)=%.3f$. ",
+    "Substituting the cutpoints into $F$ gives\n\n",
+    "$$[C_1(0,-1),C_2(0,-1)]=(%.3f,%.3f),\\quad",
+    "[C_1(1,-1),C_2(1,-1)]=(%.3f,%.3f).$$\n\n"
+  ), oeta[1], oeta[2], oc1[1], oc2[1], oc1[2], oc2[2]),
+  sprintf(paste0(
+    "Thus the fitted probability vectors are ",
+    "$(%.3f,%.3f,%.3f)$ without the visit and $(%.3f,%.3f,%.3f)$ with it. ",
+    "Subtracting component by component yields\n\n",
+    "$$\\Delta p(-1)=(%+.3f,%+.3f,%+.3f).$$\n\n",
+    "At $e=+1$, the Medium probability changes from %.3f to %.3f, ",
+    "or **%+.3f**. Its sign reverses across these two engagement values.\n\n"
+  ), ordered_prob$Low[1], ordered_prob$Medium[1], ordered_prob$High[1],
+     ordered_prob$Low[2], ordered_prob$Medium[2], ordered_prob$High[2],
+     dlo$Low, dlo$Medium, dlo$High,
+     ordered_prob$Medium[3], ordered_prob$Medium[4], dhi$Medium),
+  "**3. Check the adding-up restriction.** For either visit status, ",
+  "$p_{\\rm Low}+p_{\\rm Medium}+p_{\\rm High}=1$. Hence\n\n",
+  "$$\\Delta p_{\\rm Low}+\\Delta p_{\\rm Medium}+\\Delta p_{\\rm High}=1-1=0.$$\n\n",
+  "The coefficient belongs to the cumulative *log-odds* equation; it cannot ",
+  "be read as a change in $P(\\mathrm{High})$.\n\n",
+  "**4. State the comparison and its limit.** These calculations hold engagement ",
+  "fixed while changing visit status. The fitted model alone does not establish ",
+  "that attendance was independent of other causes of trust, so the numerical ",
+  "contrast is not, by itself, a causal effect."
+))
+```
+
+## B. Unordered participation choice
+
+Residents choose **one** response to a proposed permit rule: No action, Petition, or Rally. `permit = 1` denotes the new-rule setting. **No action** is the base category.
+
+```{r}
+mc <- coef(multi_fit)
+knitr::kable(
+  data.frame(Outcome_vs_No_action = rownames(mc),
+             Intercept = sprintf("%.3f", mc[, "(Intercept)"]),
+             Permit = sprintf("%.3f", mc[, "permit"])),
+  caption = "Multinomial logit coefficients")
+```
+
+```{r}
+knitr::kable(
+  data.frame(Permit = c(0, 1),
+             No_action = sprintf("%.3f", multi_prob[["No action"]]),
+             Petition = sprintf("%.3f", multi_prob$Petition),
+             Rally = sprintf("%.3f", multi_prob$Rally)),
+  caption = "Predicted probabilities at each permit setting")
+```
+
+1. Translate the `permit` coefficient for Petition into a sentence about **Petition versus No action** odds. Calculate the ratio.
+2. Does the **Petition probability** move in the same direction as its coefficient? Explain using all three outcomes.
+3. Give the probability change for each outcome. Check that the three changes sum to zero.
+4. If Petition and Rally were nearly identical substitutes, which assumption of multinomial logit would deserve scrutiny? State the assumption using an odds ratio.
+
+```{r}
+#| results: asis
+md <- multi_prob[2, ] - multi_prob[1, ]
+ms0 <- c(1, exp(mc["Petition", "(Intercept)"]),
+         exp(mc["Rally", "(Intercept)"]))
+ms1 <- c(1, exp(sum(mc["Petition", ])),
+         exp(sum(mc["Rally", ])))
+solution(paste0(
+  "**1. Define the baseline comparison.** Write $r$ for the permit indicator, ",
+  "$s_0(r)=1$ for No action, $s_P(r)=e^{\\alpha_P+\\beta_P r}$ for Petition, ",
+  "and $s_R(r)=e^{\\alpha_R+\\beta_R r}$ for Rally. The probability of option ",
+  "$j$ is $p_j(r)=s_j(r)/[s_0(r)+s_P(r)+s_R(r)]$. Dividing Petition by No action ",
+  "cancels the common denominator:\n\n",
+  "$$\\log\\frac{p_P(r)}{p_0(r)}=\\alpha_P+\\beta_P r.$$\n\n",
+  sprintf(paste0(
+    "Changing $r:0\\to1$ multiplies these *relative odds* by ",
+    "$e^{\\hat\\beta_P}=e^{%.3f}=%.3f$. ",
+    "This is not a probability change.\n\n"
+  ), mc["Petition", "permit"], exp(mc["Petition", "permit"])),
+  "**2. Normalize all three scores to obtain probabilities.** In the order ",
+  "(No action, Petition, Rally), the score vectors are\n\n",
+  sprintf(paste0(
+    "$$s(0)=(1,e^{%.3f},e^{%.3f})\\approx(%.3f,%.3f,%.3f),",
+    "\\qquad \\sum_j s_j(0)=%.3f;$$\n\n",
+    "$$s(1)=(1,e^{%.3f%+.3f},e^{%.3f%+.3f})",
+    "\\approx(%.3f,%.3f,%.3f),\\qquad \\sum_j s_j(1)=%.3f.$$\n\n"
+  ), mc["Petition", "(Intercept)"], mc["Rally", "(Intercept)"],
+     ms0[1], ms0[2], ms0[3], sum(ms0),
+     mc["Petition", "(Intercept)"], mc["Petition", "permit"],
+     mc["Rally", "(Intercept)"], mc["Rally", "permit"],
+     ms1[1], ms1[2], ms1[3], sum(ms1)),
+  sprintf(paste0(
+    "Dividing each score by its row sum gives ",
+    "$p(0)=(%.3f,%.3f,%.3f)$ and $p(1)=(%.3f,%.3f,%.3f)$. ",
+    "Petition's probability rises because Rally loses a larger share than ",
+    "Petition, even though Petition's odds relative to No action fall.\n\n"
+  ), multi_prob[["No action"]][1], multi_prob$Petition[1], multi_prob$Rally[1],
+     multi_prob[["No action"]][2], multi_prob$Petition[2], multi_prob$Rally[2]),
+  "**3. Take the probability contrasts.** Subtract $p(0)$ from $p(1)$:\n\n",
+  sprintf("$$\\Delta p=(%+.3f,%+.3f,%+.3f),\\qquad \\sum_j\\Delta p_j=0.$$\n\n",
+          md[["No action"]], md$Petition, md$Rally),
+  "The sum is zero because the options are mutually exclusive and exhaustive.\n\n",
+  "**4. State the IIA restriction.** The model requires\n\n",
+  "$$\\frac{p_P(r)}{p_0(r)}=\\frac{s_P(r)}{s_0(r)}",
+  "=e^{\\alpha_P+\\beta_P r},$$\n\n",
+  "which contains no Rally score. If Rally were removed, IIA would leave the ",
+  "Petition/No action odds unchanged. When Rally is a close substitute for ",
+  "Petition, its removal may instead send disproportionately many people to ",
+  "Petition. That is the substantive concern."
+))
+```
+
+## C. Protest counts
+
+The outcome is the number of protests in a district-year. `outreach = 1` indicates a civic outreach network; `pop_z` is standardized district population. Poisson, quasi-Poisson, and negative binomial (NB) models are fit to the same simulated observations. All three use $\log(\mu_i)=x_i^\top\beta$.
+
+```{r}
+count_table <- data.frame(
+  Term = c("Intercept", "Outreach", "Population (standardized)"),
+  Pois_beta = sprintf("%.3f", coef(pois_fit)),
+  Pois_SE = sprintf("%.3f", summary(pois_fit)$coefficients[, 2]),
+  Quasi_SE = sprintf("%.3f", summary(quasi_fit)$coefficients[, 2]),
+  NB_beta = sprintf("%.3f", coef(nb_fit)),
+  NB_SE = sprintf("%.3f", summary(nb_fit)$coefficients[, 2]))
+knitr::kable(count_table,
+             caption = "Count-model estimates and standard errors")
+```
+
+At `pop_z = 0`, Poisson predicts **`r sprintf('%.3f', count_means[1])`** protests when `outreach = 0` and **`r sprintf('%.3f', count_means[2])`** when `outreach = 1`. The quasi-Poisson dispersion estimate is **`r sprintf('%.2f', summary(quasi_fit)$dispersion)`**. The NB size parameter is **`r sprintf('%.2f', nb_fit$theta)`**.
+
+1. Interpret the Poisson outreach coefficient as a ratio of expected counts. Compute the ratio. Then calculate the predicted **count difference** at `pop_z = 0`.
+2. Would the predicted count difference be the same in a more populous district? Explain without refitting.
+3. Compare Poisson and quasi-Poisson estimates and standard errors. What does dispersion greater than one suggest? What does quasi-Poisson change?
+4. For NB, write the conditional variance at mean $\mu=2$ using the estimated $\theta$. Compare it with the Poisson variance at the same mean. Can the NB outreach coefficient be interpreted with the same exponential rule?
+
+```{r}
+#| results: asis
+pb <- coef(pois_fit)
+nb <- coef(nb_fit)
+mu_pop1 <- predict(pois_fit,
+  data.frame(outreach = c(0, 1), pop_z = 1), type = "response")
+solution(paste0(
+  "**1. From log mean to count ratio.** Write $a$ for outreach and $z$ for ",
+  "standardized population. The fitted Poisson mean is\n\n",
+  sprintf("$$\\hat\\mu(a,z)=\\exp(%.3f+%.3f a+%.3f z).$$\n\n",
+          pb["(Intercept)"], pb["outreach"], pb["pop_z"]),
+  "Holding $z$ fixed, divide the two fitted means:\n\n",
+  sprintf(paste0(
+    "$$\\frac{\\hat\\mu(1,z)}{\\hat\\mu(0,z)}",
+    "=\\frac{e^{\\hat\\beta_0+\\hat\\beta_a+\\hat\\beta_z z}}",
+    "{e^{\\hat\\beta_0+\\hat\\beta_z z}}",
+    "=e^{\\hat\\beta_a}=e^{%.3f}=%.3f.$$\n\n"
+  ), pb["outreach"], exp(pb["outreach"])),
+  sprintf(paste0(
+    "At $z=0$, $\\hat\\mu(0,0)=%.3f$ and $\\hat\\mu(1,0)=%.3f$, ",
+    "so the fitted count difference is $%.3f-%.3f=%.3f$ protests.\n\n"
+  ), count_means[1], count_means[2], count_means[2], count_means[1],
+     diff(count_means)),
+  "**2. Why the difference changes with population.** Algebraically,\n\n",
+  "$$\\Delta(z)=\\hat\\mu(1,z)-\\hat\\mu(0,z)",
+  "=\\hat\\mu(0,z)(e^{\\hat\\beta_a}-1).$$\n\n",
+  sprintf(paste0(
+    "The ratio $e^{\\hat\\beta_a}$ is fixed, but $\\hat\\mu(0,z)$ changes. ",
+    "At $z=1$, the two means are %.3f and %.3f; their difference is %.3f. ",
+    "Across the $n=%d$ simulated districts, the average fitted difference is\n\n",
+    "$$\\frac{1}{n}\\sum_{i=1}^{n}",
+    "[\\hat\\mu(1,z_i)-\\hat\\mu(0,z_i)]=%.3f.$$\n\n"
+  ), mu_pop1[1], mu_pop1[2], diff(mu_pop1), nrow(count_data), count_ape),
+  "**3. Separate the mean assumption from the variance assumption.** ",
+  "Poisson imposes $\\operatorname{Var}(Y_i\\mid x_i)=\\mu_i$. ",
+  "Quasi-Poisson instead permits $\\operatorname{Var}(Y_i\\mid x_i)=\\phi\\mu_i$. ",
+  sprintf(paste0(
+    "The estimated $\\hat\\phi=%.3f$, so the quasi standard errors are ",
+    "approximately $\\sqrt{\\hat\\phi}=%.3f$ times the ordinary Poisson values. ",
+    "For outreach, $%.3f\\times%.3f\\approx%.3f$. The coefficient and ",
+    "the mean predictions stay the same. If the conditional mean and ",
+    "independence assumptions are right, Poisson coefficients can remain ",
+    "consistent despite overdispersion; its unadjusted standard errors do not.\n\n"
+  ), summary(quasi_fit)$dispersion,
+     sqrt(summary(quasi_fit)$dispersion),
+     summary(pois_fit)$coefficients["outreach", 2],
+     sqrt(summary(quasi_fit)$dispersion),
+     summary(quasi_fit)$coefficients["outreach", 2]),
+  "**4. Interpret the negative binomial fit.** It retains a log mean but specifies\n\n",
+  "$$\\operatorname{Var}(Y_i\\mid x_i)=\\mu_i+\\frac{\\mu_i^2}{\\theta}. $$\n\n",
+  sprintf(paste0(
+    "At $\\mu_i=2$ and $\\hat\\theta=%.3f$, the fitted variance is ",
+    "$2+4/%.3f=%.3f$, compared with the Poisson variance of 2. ",
+    "The NB outreach coefficient is %.3f, hence its count ratio is ",
+    "$e^{%.3f}=%.3f$. The exponential interpretation survives because the ",
+    "mean still uses a log link; the NB coefficient can differ because the ",
+    "likelihood differs."
+  ), nb_fit$theta, nb_fit$theta, 2 + 4 / nb_fit$theta,
+     nb["outreach"], nb["outreach"], exp(nb["outreach"]))
+))
+```
+
+## Check your interpretation
+
+Answer each question briefly.
+
+1. An ordered-logit coefficient is positive. Must the middle-category probability increase? Why?
+2. A multinomial coefficient for Petition versus No action is negative. Must `P(Petition)` fall? Why?
+3. A Poisson coefficient is 0.7. What remains constant across covariate profiles: the ratio or the difference in expected counts?
+
+```{r}
+#| results: asis
+solution(paste0(
+  "1. **No.** A positive ordered-logit coefficient shifts probability upward in the ordering, but $P(\\mathrm{Medium})=P(Y\\le\\mathrm{Medium})-P(Y\\le\\mathrm{Low})$. Both cumulative probabilities change. Their difference may rise or fall, as it did across the two engagement values above.\n\n",
+  "2. **No.** The negative coefficient says that Petition/No action odds fall. To find $P(\\mathrm{Petition})$, divide Petition's score by the sum of all three scores. A large enough fall in Rally's score can make Petition's share rise.\n\n",
+  "3. The **ratio** of expected counts remains $e^{0.7}\\approx 2.01$ at every covariate profile in a log-link model without an interaction. The difference is $\\mu_0(e^{0.7}-1)$ and therefore grows with the baseline expected count $\\mu_0$.\n\n",
+  "Each answer hinges on keeping the coefficient's scale separate from a category probability or count difference."
+))
+```
+
+::: {.callout-note title="Source and reproducibility"}
+The R code in this QMD generates the data (`set.seed(6039)`) and fits the models with `MASS::polr`, `nnet::multinom`, `glm`, and `MASS::glm.nb`. Calculations use full-precision estimates, so the last digit may differ from arithmetic based on the printed tables. Topics and notation follow [Lecture 11: Catch-up on ordered, unordered and count outcomes](https://github.com/ddekadt/cornell-govt-6039/blob/main/lectures/slides_11.pdf).
+:::

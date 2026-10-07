@@ -8,7 +8,7 @@
 
 <meta name="dcterms.date" content="2026-10-07">
 
-<title>Section 5: Interpreting categorical and count models</title>
+<title>Section 5: Interpreting categorical and count models — worked solutions</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -3189,12 +3189,12 @@ window.Quarto = {
 
 <div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
 <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-<div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="section05.html"><i class="bi bi-file-pdf"></i>PDF</a></li></ul></div></div>
+<div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="section05-solutions.html"><i class="bi bi-file-pdf"></i>PDF</a></li></ul></div></div>
 <main class="content" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Section 5: Interpreting categorical and count models</h1>
+<h1 class="title">Section 5: Interpreting categorical and count models — worked solutions</h1>
 <p class="subtitle lead">GOVT 6039 · Lecture 11 practice</p>
 </div>
 
@@ -3218,11 +3218,30 @@ window.Quarto = {
 </header>
 
 
+<p><strong>Worked solutions.</strong></p>
 <p>The three cases use simulated data. Round numerical answers to two or three decimal places.</p>
 <p><strong>Focus:</strong> cumulative odds versus category probabilities; multinomial log odds versus probability changes; count ratios versus count differences; and what overdispersion changes.</p>
 <section id="choose-the-outcome-model" class="level2">
 <h2 class="anchored" data-anchor-id="choose-the-outcome-model">Choose the outcome model</h2>
 <p>Choose <strong>ordered logit</strong>, <strong>multinomial logit</strong>, or a <strong>count model</strong> for each outcome, and give one reason: (1) trust in city government: low, medium, high; (2) one intended action: no action, petition, or rally; (3) number of protests in a district during one year.</p>
+<div class="callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Worked solution
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ol type="1">
+<li><p><strong>Trust: ordered logit.</strong> We know Low <span class="math inline">\(&lt;\)</span> Medium <span class="math inline">\(&lt;\)</span> High, but we do not know whether the Low-to-Medium gap equals the Medium-to-High gap. Ordered logit uses the ranking without treating the labels as equally spaced numbers.</p></li>
+<li><p><strong>Participation: multinomial logit.</strong> No action, Petition, and Rally are different choices, but there is no single numerical ranking that all three must follow. A multinomial model estimates the probability of each choice, using one as the reference.</p></li>
+<li><p><strong>Protests: a count model.</strong> The outcome can be 0, 1, 2, and so on. A count model respects that lower bound and can relate predictors to the expected number of protests. The Poisson model is a starting point; its mean-variance restriction should be checked.</p></li>
+</ol>
+<p>Coding trust as 1, 2, 3 and using OLS would impose equal spacing. Turning the protest total into any/none would discard how many protests occurred.</p>
+</div>
+</div>
 </section>
 <section id="a.-ordered-trust" class="level2">
 <h2 class="anchored" data-anchor-id="a.-ordered-trust">A. Ordered trust</h2>
@@ -3281,6 +3300,34 @@ window.Quarto = {
 <li>Why do the three probability changes at any given engagement sum to zero? Explain why the coefficient is <strong>not</strong> the change in <code>P(High)</code>.</li>
 <li>What is held fixed? Does the fitted contrast, by itself, establish a causal effect of attending the session?</li>
 </ol>
+<div class="callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Worked solution
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>1. Derive the odds ratio.</strong> Let <span class="math inline">\(v\)</span> denote visit and <span class="math inline">\(e\)</span> denote engagement. Set <span class="math inline">\(\eta(v,e)=\hat\beta_v v+\hat\beta_e e\)</span> and <span class="math inline">\(C_j(v,e)=P(Y\le j\mid v,e)=F(\hat\zeta_j-\eta(v,e))\)</span>, where <span class="math inline">\(F(t)=(1+e^{-t})^{-1}\)</span>. Logistic odds give</p>
+<p><span class="math display">\[\log\frac{P(Y&gt;j\mid v,e)}{P(Y\le j\mid v,e)}=\eta(v,e)-\hat\zeta_j,\qquad j=1,2.\]</span></p>
+<p>Holding <span class="math inline">\(e\)</span> fixed and changing <span class="math inline">\(v:0\to1\)</span> therefore adds <span class="math inline">\(\hat\beta_v=0.862\)</span> to <em>both</em> cumulative log-odds comparisons. For <span class="math inline">\(j=2\)</span>, the comparison is High versus Low or Medium:</p>
+<p><span class="math display">\[\mathrm{OR}=\exp(\hat\beta_v)=e^{0.862}=2.369.\]</span></p>
+<p>The inverse odds, at or below <span class="math inline">\(j\)</span> versus above <span class="math inline">\(j\)</span>, have ratio <span class="math inline">\(e^{-0.862}=0.422\)</span>.</p>
+<p><strong>2. Recover category probabilities before taking differences.</strong> With three ordered categories,</p>
+<p><span class="math display">\[p_{\rm Low}=C_1,\qquad p_{\rm Medium}=C_2-C_1,\qquad p_{\rm High}=1-C_2.\]</span></p>
+<p>At engagement <span class="math inline">\(e=-1\)</span>, <span class="math inline">\(\eta(0,-1)=-0.618\)</span> and <span class="math inline">\(\eta(1,-1)=0.245\)</span>. Substituting the cutpoints into <span class="math inline">\(F\)</span> gives</p>
+<p><span class="math display">\[[C_1(0,-1),C_2(0,-1)]=(0.517,0.828),\quad[C_1(1,-1),C_2(1,-1)]=(0.312,0.670).\]</span></p>
+<p>Thus the fitted probability vectors are <span class="math inline">\((0.517,0.310,0.172)\)</span> without the visit and <span class="math inline">\((0.312,0.358,0.330)\)</span> with it. Subtracting component by component yields</p>
+<p><span class="math display">\[\Delta p(-1)=(-0.206,+0.048,+0.158).\]</span></p>
+<p>At <span class="math inline">\(e=+1\)</span>, the Medium probability changes from 0.345 to 0.255, or <strong>-0.091</strong>. Its sign reverses across these two engagement values.</p>
+<p><strong>3. Check the adding-up restriction.</strong> For either visit status, <span class="math inline">\(p_{\rm Low}+p_{\rm Medium}+p_{\rm High}=1\)</span>. Hence</p>
+<p><span class="math display">\[\Delta p_{\rm Low}+\Delta p_{\rm Medium}+\Delta p_{\rm High}=1-1=0.\]</span></p>
+<p>The coefficient belongs to the cumulative <em>log-odds</em> equation; it cannot be read as a change in <span class="math inline">\(P(\mathrm{High})\)</span>.</p>
+<p><strong>4. State the comparison and its limit.</strong> These calculations hold engagement fixed while changing visit status. The fitted model alone does not establish that attendance was independent of other causes of trust, so the numerical contrast is not, by itself, a causal effect.</p>
+</div>
+</div>
 </section>
 <section id="b.-unordered-participation-choice" class="level2">
 <h2 class="anchored" data-anchor-id="b.-unordered-participation-choice">B. Unordered participation choice</h2>
@@ -3346,6 +3393,31 @@ window.Quarto = {
 <li>Give the probability change for each outcome. Check that the three changes sum to zero.</li>
 <li>If Petition and Rally were nearly identical substitutes, which assumption of multinomial logit would deserve scrutiny? State the assumption using an odds ratio.</li>
 </ol>
+<div class="callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Worked solution
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>1. Define the baseline comparison.</strong> Write <span class="math inline">\(r\)</span> for the permit indicator, <span class="math inline">\(s_0(r)=1\)</span> for No action, <span class="math inline">\(s_P(r)=e^{\alpha_P+\beta_P r}\)</span> for Petition, and <span class="math inline">\(s_R(r)=e^{\alpha_R+\beta_R r}\)</span> for Rally. The probability of option <span class="math inline">\(j\)</span> is <span class="math inline">\(p_j(r)=s_j(r)/[s_0(r)+s_P(r)+s_R(r)]\)</span>. Dividing Petition by No action cancels the common denominator:</p>
+<p><span class="math display">\[\log\frac{p_P(r)}{p_0(r)}=\alpha_P+\beta_P r.\]</span></p>
+<p>Changing <span class="math inline">\(r:0\to1\)</span> multiplies these <em>relative odds</em> by <span class="math inline">\(e^{\hat\beta_P}=e^{-0.499}=0.607\)</span>. This is not a probability change.</p>
+<p><strong>2. Normalize all three scores to obtain probabilities.</strong> In the order (No action, Petition, Rally), the score vectors are</p>
+<p><span class="math display">\[s(0)=(1,e^{0.419},e^{0.509})\approx(1.000,1.520,1.664),\qquad \sum_j s_j(0)=4.184;\]</span></p>
+<p><span class="math display">\[s(1)=(1,e^{0.419-0.499},e^{0.509-1.441})\approx(1.000,0.923,0.394),\qquad \sum_j s_j(1)=2.317.\]</span></p>
+<p>Dividing each score by its row sum gives <span class="math inline">\(p(0)=(0.239,0.363,0.398)\)</span> and <span class="math inline">\(p(1)=(0.432,0.398,0.170)\)</span>. Petition’s probability rises because Rally loses a larger share than Petition, even though Petition’s odds relative to No action fall.</p>
+<p><strong>3. Take the probability contrasts.</strong> Subtract <span class="math inline">\(p(0)\)</span> from <span class="math inline">\(p(1)\)</span>:</p>
+<p><span class="math display">\[\Delta p=(+0.193,+0.035,-0.228),\qquad \sum_j\Delta p_j=0.\]</span></p>
+<p>The sum is zero because the options are mutually exclusive and exhaustive.</p>
+<p><strong>4. State the IIA restriction.</strong> The model requires</p>
+<p><span class="math display">\[\frac{p_P(r)}{p_0(r)}=\frac{s_P(r)}{s_0(r)}=e^{\alpha_P+\beta_P r},\]</span></p>
+<p>which contains no Rally score. If Rally were removed, IIA would leave the Petition/No action odds unchanged. When Rally is a close substitute for Petition, its removal may instead send disproportionately many people to Petition. That is the substantive concern.</p>
+</div>
+</div>
 </section>
 <section id="c.-protest-counts" class="level2">
 <h2 class="anchored" data-anchor-id="c.-protest-counts">C. Protest counts</h2>
@@ -3408,6 +3480,31 @@ window.Quarto = {
 <li>Compare Poisson and quasi-Poisson estimates and standard errors. What does dispersion greater than one suggest? What does quasi-Poisson change?</li>
 <li>For NB, write the conditional variance at mean <span class="math inline">\(\mu=2\)</span> using the estimated <span class="math inline">\(\theta\)</span>. Compare it with the Poisson variance at the same mean. Can the NB outreach coefficient be interpreted with the same exponential rule?</li>
 </ol>
+<div class="callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Worked solution
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>1. From log mean to count ratio.</strong> Write <span class="math inline">\(a\)</span> for outreach and <span class="math inline">\(z\)</span> for standardized population. The fitted Poisson mean is</p>
+<p><span class="math display">\[\hat\mu(a,z)=\exp(0.277+0.633 a+0.313 z).\]</span></p>
+<p>Holding <span class="math inline">\(z\)</span> fixed, divide the two fitted means:</p>
+<p><span class="math display">\[\frac{\hat\mu(1,z)}{\hat\mu(0,z)}=\frac{e^{\hat\beta_0+\hat\beta_a+\hat\beta_z z}}{e^{\hat\beta_0+\hat\beta_z z}}=e^{\hat\beta_a}=e^{0.633}=1.884.\]</span></p>
+<p>At <span class="math inline">\(z=0\)</span>, <span class="math inline">\(\hat\mu(0,0)=1.319\)</span> and <span class="math inline">\(\hat\mu(1,0)=2.485\)</span>, so the fitted count difference is <span class="math inline">\(2.485-1.319=1.166\)</span> protests.</p>
+<p><strong>2. Why the difference changes with population.</strong> Algebraically,</p>
+<p><span class="math display">\[\Delta(z)=\hat\mu(1,z)-\hat\mu(0,z)=\hat\mu(0,z)(e^{\hat\beta_a}-1).\]</span></p>
+<p>The ratio <span class="math inline">\(e^{\hat\beta_a}\)</span> is fixed, but <span class="math inline">\(\hat\mu(0,z)\)</span> changes. At <span class="math inline">\(z=1\)</span>, the two means are 1.805 and 3.399; their difference is 1.595. Across the <span class="math inline">\(n=3000\)</span> simulated districts, the average fitted difference is</p>
+<p><span class="math display">\[\frac{1}{n}\sum_{i=1}^{n}[\hat\mu(1,z_i)-\hat\mu(0,z_i)]=1.222.\]</span></p>
+<p><strong>3. Separate the mean assumption from the variance assumption.</strong> Poisson imposes <span class="math inline">\(\operatorname{Var}(Y_i\mid x_i)=\mu_i\)</span>. Quasi-Poisson instead permits <span class="math inline">\(\operatorname{Var}(Y_i\mid x_i)=\phi\mu_i\)</span>. The estimated <span class="math inline">\(\hat\phi=2.684\)</span>, so the quasi standard errors are approximately <span class="math inline">\(\sqrt{\hat\phi}=1.638\)</span> times the ordinary Poisson values. For outreach, <span class="math inline">\(0.027\times1.638\approx0.044\)</span>. The coefficient and the mean predictions stay the same. If the conditional mean and independence assumptions are right, Poisson coefficients can remain consistent despite overdispersion; its unadjusted standard errors do not.</p>
+<p><strong>4. Interpret the negative binomial fit.</strong> It retains a log mean but specifies</p>
+<p><span class="math display">\[\operatorname{Var}(Y_i\mid x_i)=\mu_i+\frac{\mu_i^2}{\theta}. \]</span></p>
+<p>At <span class="math inline">\(\mu_i=2\)</span> and <span class="math inline">\(\hat\theta=1.156\)</span>, the fitted variance is <span class="math inline">\(2+4/1.156=5.460\)</span>, compared with the Poisson variance of 2. The NB outreach coefficient is 0.628, hence its count ratio is <span class="math inline">\(e^{0.628}=1.873\)</span>. The exponential interpretation survives because the mean still uses a log link; the NB coefficient can differ because the likelihood differs.</p>
+</div>
+</div>
 </section>
 <section id="check-your-interpretation" class="level2">
 <h2 class="anchored" data-anchor-id="check-your-interpretation">Check your interpretation</h2>
@@ -3417,6 +3514,24 @@ window.Quarto = {
 <li>A multinomial coefficient for Petition versus No action is negative. Must <code>P(Petition)</code> fall? Why?</li>
 <li>A Poisson coefficient is 0.7. What remains constant across covariate profiles: the ratio or the difference in expected counts?</li>
 </ol>
+<div class="callout callout-style-default callout-tip callout-titled" title="Worked solution">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Worked solution
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<ol type="1">
+<li><p><strong>No.</strong> A positive ordered-logit coefficient shifts probability upward in the ordering, but <span class="math inline">\(P(\mathrm{Medium})=P(Y\le\mathrm{Medium})-P(Y\le\mathrm{Low})\)</span>. Both cumulative probabilities change. Their difference may rise or fall, as it did across the two engagement values above.</p></li>
+<li><p><strong>No.</strong> The negative coefficient says that Petition/No action odds fall. To find <span class="math inline">\(P(\mathrm{Petition})\)</span>, divide Petition’s score by the sum of all three scores. A large enough fall in Rally’s score can make Petition’s share rise.</p></li>
+<li><p>The <strong>ratio</strong> of expected counts remains <span class="math inline">\(e^{0.7}\approx 2.01\)</span> at every covariate profile in a log-link model without an interaction. The difference is <span class="math inline">\(\mu_0(e^{0.7}-1)\)</span> and therefore grows with the baseline expected count <span class="math inline">\(\mu_0\)</span>.</p></li>
+</ol>
+<p>Each answer hinges on keeping the coefficient’s scale separate from a category probability or count difference.</p>
+</div>
+</div>
 <div class="callout callout-style-default callout-note callout-titled" title="Source and reproducibility">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
