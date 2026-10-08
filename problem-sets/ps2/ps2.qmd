@@ -1,0 +1,194 @@
+---
+title: "Problem Set 2: Binary and Categorical Outcomes"
+subtitle: "GOVT 6039 | Fall 2026 | Unit 2"
+author: "Your name"
+number-sections: true
+format:
+  pdf:
+    toc: false
+    include-in-header:
+      text: |
+        \setkomafont{disposition}{\normalfont\bfseries}
+        \setkomafont{section}{\normalfont\Large\bfseries}
+        \setkomafont{subsection}{\normalfont\normalsize}
+---
+
+```{r setup, include = FALSE}
+# this chunk contains code that sets global options for the entire .qmd.
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, linewidth = 60, echo = TRUE)
+
+library(tidyverse)
+library(knitr)
+library(haven)
+library(marginaleffects)
+
+# we call MASS::polr() and nnet::multinom() with their package names, as in
+# the lectures, so that MASS does not mask dplyr::select()
+```
+
+To answer questions, open the .qmd, add your name, and edit as appropriate. Then render to .pdf.
+
+Write all mathematics in LaTeX so that it renders properly: `$...$` for inline expressions, `$$...$$` for displayed ones. Several questions ask for derivations, so render to .pdf before you submit. A LaTeX error will stop the file compiling, and an answer that does not compile cannot be marked.
+
+Submit by emailing your rendered .pdf to Georgy at gt298@cornell.edu.
+
+# Concepts
+
+This section returns to the running example from slide decks `slides_07` to `slides_09`, where $Y_i$ is a country's regime type and $\mathbf{x}_i$ contains `oil` and `lgdp`. Write $\eta_i = \mathbf{x}_i^\top \boldsymbol\beta$ for the linear predictor. These questions need no code, but write out your answers and derivations in LaTeX in this .qmd. Question 1.5 is extra credit.
+
+## A logit of democracy on `oil` and `lgdp` returns $\hat\beta_{\text{oil}} = -1.2$. The table lists three countries with different predicted probabilities of democracy when `oil` $= 0$. Fill in the missing cells and **bold** them. What is $e^{\hat\beta_{\text{oil}}}$, and what quantity does it multiply? Why does the same coefficient produce three different changes in probability?
+
+| $\hat\pi$ without oil | Odds | Log odds | Log odds with oil | $\hat\pi$ with oil | Change (pp) |
+|------|-------|-------|-------|-------|-------|
+| 0.10 | **?** | **?** | **?** | **?** | **?** |
+| 0.50 | **?** | **?** | **?** | **?** | **?** |
+| 0.90 | **?** | **?** | **?** | **?** | **?** |
+
+*Delete this line and replace it with your answer.*
+
+## Show that in the logit $\partial \pi_i / \partial x_{ij} = \beta_j\, \pi_i (1 - \pi_i)$. This slope differs across countries because $\pi_i$ does. At what value of $\pi_i$ is it steepest, and how steep is it there, written as a multiple of $\beta_j$? Slide deck `slides_07` estimates $\hat\beta_{\text{lgdp}} = 1.851$. Use your result to find the largest slope $\partial \hat\pi_i / \partial\, \texttt{lgdp}$ that any country can have, whatever its values of `lgdp` and `oil`. Is the average effect of one unit of `lgdp` in slide deck `slides_08` (21.7 percentage points) consistent with this maximum?
+
+*Delete this line and replace it with your answer.*
+
+## Slide deck `slides_09` writes the ordered logit without an intercept. Suppose instead that $Y_i^* = \beta_0 + \mathbf{x}_i^\top\boldsymbol\beta + \varepsilon_i$ with $\varepsilon_i \sim \text{Logistic}(0, 1)$, and that $Y_i \in \{1, 2, 3\}$ is cut from $Y_i^*$ at $\zeta_1 < \zeta_2$. Write $P(Y_i = 1 \mid \mathbf{x}_i)$, $P(Y_i = 2 \mid \mathbf{x}_i)$ and $P(Y_i = 3 \mid \mathbf{x}_i)$ using $\operatorname{logit}^{-1}$. Show that adding the same constant $c$ to $\beta_0$, $\zeta_1$ and $\zeta_2$ leaves all three unchanged. What does this imply about what can be estimated, and why do you think `MASS::polr()` reports no intercept?
+
+*Delete this line and replace it with your answer.*
+
+## Set $\beta_0 = 0$ as in slide deck `slides_09`. Show that $\log\{P(Y_i > j \mid \mathbf{x}_i) / P(Y_i \leq j \mid \mathbf{x}_i)\} = \mathbf{x}_i^\top\boldsymbol\beta - \zeta_j$ for $j = 1, 2$. Now collapse regime type into a binary outcome in two different ways: democracy against the two autocracies, and closed autocracy against the other two. If the ordered logit is the true model, what slope and intercept should a binary logit return in each case?
+
+*Delete this line and replace it with your answer.*
+
+## **Extra credit.** Let $\lambda(z) = e^z / (1 + e^z)^2$ be the logistic density, the derivative of $\operatorname{logit}^{-1}$. Show that $\partial P(Y_i = 2 \mid \mathbf{x}_i) / \partial x_{im} = \beta_m \{\lambda(\zeta_1 - \eta_i) - \lambda(\zeta_2 - \eta_i)\}$, and write the corresponding derivatives for categories 1 and 3. Suppose $\beta_m > 0$. Which of the three signs are fixed, and for which $\eta_i$ is the middle derivative zero? What does this imply about how $x_{im}$ can move the two extreme categories?
+
+*Delete this line and replace it with your answer.*
+
+# Simulations
+
+In this section we simulate an ordered outcome from the latent-variable model in slide deck `slides_09`. Each observation $i$ has an unobserved latent propensity
+$$
+Y_i^* = \beta x_i + s(x_i)\, \varepsilon_i, \qquad \varepsilon_i \sim \text{Logistic}(0, 1), \qquad s(x_i) = e^{\gamma x_i},
+$$
+and we observe only which of three categories $Y_i^*$ falls into:
+$$
+Y_i = \begin{cases} \text{Low} & \text{if } Y_i^* \leq \zeta_1, \\ \text{Middle} & \text{if } \zeta_1 < Y_i^* \leq \zeta_2, \\ \text{High} & \text{if } Y_i^* > \zeta_2, \end{cases} \qquad \zeta_1 = -1, \quad \zeta_2 = 1.
+$$
+$\beta$ sets how fast the centre of $Y_i^*$ moves with $x_i$, and $s(x_i)$ sets how spread out $Y_i^*$ is at a given $x_i$. When $\gamma = 0$, $s(x_i) = 1$ for every observation and this is the ordered logit from slide deck `slides_09`. When $\gamma \neq 0$, the spread of $Y_i^*$ changes with $x_i$, which the ordered logit does not allow.
+
+The code below draws two training samples of $n = 1000$: `train_a` with $\beta = 1$ and $\gamma = 0$, and `train_b` with $\beta = 0.5$ and $\gamma = 1$. Since we specify the DGP, we know the true category probabilities, which `true_probs()` returns.
+
+```{r, echo = TRUE}
+set.seed(20261005)
+
+zeta <- c(-1, 1)
+
+make_sample <- function(n, beta, gamma) {
+  x     <- rnorm(n)
+  ystar <- beta * x + exp(gamma * x) * rlogis(n)   # Y* = beta x + s(x) eps
+  y     <- cut(ystar, breaks = c(-Inf, zeta, Inf),
+               labels = c("Low", "Middle", "High"), ordered_result = TRUE)
+  tibble(x = x, y = y)
+}
+
+true_probs <- function(x, beta, gamma) {
+  s  <- exp(gamma * x)
+  F1 <- plogis((zeta[1] - beta * x) / s)
+  F2 <- plogis((zeta[2] - beta * x) / s)
+  cbind(Low = F1, Middle = F2 - F1, High = 1 - F2)
+}
+
+train_a <- make_sample(1000, beta = 1,   gamma = 0)
+train_b <- make_sample(1000, beta = 0.5, gamma = 1)
+```
+
+## Explain why the ordered logit from slide deck `slides_09` is the true model for `train_a`. Fit `MASS::polr()` to `train_a` and report $\hat\beta$, $\hat\zeta_1$ and $\hat\zeta_2$ in a table next to their true values.
+
+*Delete this line and replace it with your answer.*
+
+## In 1.4 you derived the intercept and slope that a binary logit should return when the ordered logit is the true model. This question checks that result on `train_a`, where it is. Fit two binary logits with `glm()`: one for $P(Y_i \neq \text{Low}) = P(Y_i > 1)$ and one for $P(Y_i = \text{High}) = P(Y_i > 2)$. Report the intercept and slope of each in a table, next to the values 1.4 predicts for $\beta = 1$, $\zeta_1 = -1$ and $\zeta_2 = 1$. Do the estimates match the predictions?
+
+*Delete this line and replace it with your answer.*
+
+## `train_b` differs from `train_a` in two ways. The centre of $Y_i^*$ moves more slowly with $x_i$ ($\beta = 0.5$), and its spread now grows with $x_i$ ($\gamma = 1$, so $s(x_i) = e^{x_i}$). This question asks what the second change does to the observed categories.
+
+(a) In one or two sentences, describe what happens to the distribution of $Y_i^*$ as $x_i$ rises, and what you expect this to do to the share of observations in each category.
+(b) Cut $x$ into ten bins of equal size with `ntile()`, and plot the share of each category against the mean of $x$ in each bin.
+(c) Repeat 2.2 on `train_b`. Which result from 1.4 does `train_b` violate?
+
+*Delete this line and replace it with your answer.*
+
+## For `train_b`, use `true_probs()` to compute the true APE of a one-unit increase in $x$ on each category: the average over observations of $P(Y_i = j \mid x_i + 1) - P(Y_i = j \mid x_i)$. Then fit `MASS::polr()` and `nnet::multinom()` to `train_b` and compute the same quantity for each with `avg_comparisons(fit, variables = list(x = 1))`. Report the three sets of APEs in one table. Which model gets the Middle category wrong, and why could it not do better?
+
+*Delete this line and replace it with your answer.*
+
+## For both `train_a` and `train_b`, compare `polr()` and `multinom()` by AIC and by 10-fold cross-validated $-2\ell$ per observation, as in slide deck `slides_10`. Assign folds after `set.seed(2026)`. Which model wins under each DGP? Why can you not use a likelihood-ratio test for this comparison? What does the result for `train_a` say about the multinomial's extra parameter?
+
+*Delete this line and replace it with your answer.*
+
+# Replication
+
+Allan Dafoe, Baobao Zhang and Devin Caughey, *Information Equivalence in Survey Experiments*, **Political Analysis** 26(4), 2018, 399–416, re-field the democratic peace experiment of Tomz and Weeks (*American Political Science Review*, 2013). Respondents read about an unnamed country that will soon have a nuclear bomb. The country is randomly described as a democracy or as not a democracy, and respondents are then asked whether they favor or oppose a U.S. strike on its nuclear sites. Dafoe, Zhang and Caughey ask whether the regime manipulation also changes what respondents assume about the country's other features. Tomz and Weeks return to one of those features, race, in *Race, Democracy, and Public Support for War* (*American Political Science Review*, 2025). This task reproduces the effect of the democracy treatment on support for a strike and on the race placebo, and uses them to compare the models from slide decks `slides_07` to `slides_10`. We do not reproduce the papers' full sets of placebo outcomes or their instrumental-variable estimates.
+
+`data/democratic_peace_slim.dta` holds five variables built from `democratic_peace.tab` in the authors' [Harvard Dataverse archive](https://doi.org/10.7910/DVN/KVZXE8) (v1.0), for the 2,055 respondents who saw either the basic vignette or the vignette that also states the country's alliance, trade and military strength. No Stata installation or Dataverse download is needed.
+
+| Variable | Label | Role |
+|-----------|--------------------------------------------------|--------------------------------|
+| `id` | Respondent identifier | |
+| `democ` | Country described as a democracy (1) or not (0) | Treatment $D$ |
+| `vignette` | Vignette type: `Basic` or `Covariate control` | |
+| `support` | Favor or oppose U.S. strike on nuclear sites: 1 Strongly favor, 2 Somewhat favor, 3 Neither favor nor oppose, 4 Somewhat oppose, 5 Strongly oppose, 88 I don't know | Outcome $Y$ |
+| `white` | How likely country was majority white: 1 Very unlikely, 2 Unlikely, 3 Chances about even, 4 Likely, 5 Very likely | Placebo outcome |
+
+## Read the data in with `haven::read_dta()`, drop respondents whose `support` is missing or equal to 88, and report your sample size. Recode `support` as an ordered factor that runs from `Strongly oppose` (lowest) to `Strongly favor` (highest). Fill in the table below. Why can the "I don't know" answers not enter an ordered logit as a sixth category? Why can we read the effect of `democ` causally here, when we could not read the effect of `oil` causally in slide deck `slides_09`?
+
+| Category           | Description |
+|--------------------|-------------|
+| Research question  |             |
+| Unit of analysis   |             |
+| $Y$                |             |
+| $D$                |             |
+| Estimand           |             |
+| Number of categories of $Y$ |    |
+
+*Delete this line and replace it with your answer.*
+
+## Describe the effect of `democ` on `support`, first across all five categories and then for a binary version of the outcome. Create `favor`, equal to 1 for `Somewhat favor` or `Strongly favor` and 0 otherwise, as Tomz and Weeks do. Report:
+
+(a) a table of the share of respondents in each category of `support` by `democ`, with each row summing to one, and a plot of the two distributions side by side;
+(b) the slope from the linear probability model `lm(favor ~ democ)`;
+(c) the odds ratio $e^{\hat\beta_{\texttt{democ}}}$ from the logit `glm(favor ~ democ, family = binomial)`;
+(d) the APE of `democ` from the same logit, using `avg_comparisons()`.
+
+Then show that (b) and (d) both equal a difference between two shares you can compute from (a), and explain why.
+
+*Delete this line and replace it with your answer.*
+
+## Fit an ordered logit of `support` on `democ` with `MASS::polr()`. Interpret $e^{\hat\beta}$, saying exactly which odds it multiplies. Compute the predicted probability of each category for `democ` $= 0$ and `democ` $= 1$, and compare them with the shares in 3.2(a). How many parameters does the ordered logit use to describe the two rows of your table, and how many free numbers do the two rows contain?
+
+*Delete this line and replace it with your answer.*
+
+## Fit a multinomial logit of `support` on `democ` with `nnet::multinom()`. The ordered logit from 3.3 is a restricted version of this model. Report:
+
+(a) the predicted probability of each category under each condition, and show that these reproduce the shares in 3.2(a). Explain why;
+(b) the likelihood-ratio statistic comparing the two models, its degrees of freedom and its $p$-value;
+(c) the AIC and BIC of both models.
+
+What hypothesis does the LR test evaluate, and which model would you report?
+
+*Delete this line and replace it with your answer.*
+
+## Compute the APE of `democ` on each category from both models with `avg_comparisons()`, and report them in one table. Which APE signs does the ordered logit fix in advance, whatever the data? (Hint: look at the plot of the effect of `oil` on each regime in slide deck `slides_09`.) In which categories do the two models disagree most?
+
+*Delete this line and replace it with your answer.*
+
+## Dafoe, Zhang and Caughey's concern is that describing a country as a democracy also changes what respondents assume about it. Keep every respondent with a nonmissing `white`, recode `white` as an ordered factor, and fit an ordered logit of `white` on `democ`. Report:
+
+(a) the predicted probability of answering `Likely` or `Very likely` under each condition, next to the observed shares (Tomz and Weeks (2025) report 5.6% and 16.3%);
+(b) the LR test of the ordered logit against the multinomial logit, as in 3.4(b).
+
+Is proportional odds more plausible here than for `support`?
+
+*Delete this line and replace it with your answer.*
+
+## What does the effect in 3.2 estimate: the effect of the country being a democracy, or the effect of telling respondents that it is one? Use 3.6 in your answer. Explain why this is a partial replication.
+
+*Delete this line and replace it with your answer.*
