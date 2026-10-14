@@ -1,0 +1,446 @@
+---
+title: "Section 6: Duration and Event History"
+subtitle: "GOVT 6039 | Fall 2026 | Discussion section, 14 October 2026"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    embed-resources: true
+    code-fold: show
+    code-summary: "code"
+    code-tools: true
+    theme: cosmo
+    html-math-method: mathjax
+    fig-width: 7
+    fig-height: 4
+  pdf:
+    toc: true
+    toc-depth: 2
+    geometry: margin=1in
+    colorlinks: true
+    fig-width: 7
+    fig-height: 4
+    fig-pos: "H"
+    include-in-header:
+      text: |
+        \usepackage{needspace}
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+```{r setup}
+#| include: false
+knitr::opts_chunk$set(fig.align = "center", dpi = 140)
+library(ggplot2)
+library(survival)
+library(patchwork)
+
+## validated categorical palette (blue / orange / aqua), neutral for reference marks
+pal  <- c(blue = "#2a78d6", orange = "#eb6834", aqua = "#1baf7a", yellow = "#eda100")
+ink  <- "#0b0b0b"; ink2 <- "#52514e"; ref <- "#8a8a85"
+
+theme_set(
+  theme_minimal(base_size = 12) +
+    theme(panel.grid.minor = element_blank(),
+          panel.grid.major = element_line(colour = "grey92", linewidth = 0.3),
+          axis.title = element_text(colour = ink2, size = 10),
+          plot.title = element_text(colour = ink, face = "bold", size = 13),
+          plot.subtitle = element_text(colour = ink2, size = 10),
+          plot.caption = element_text(colour = ink2, size = 9, hjust = 0),
+          legend.position = "none",
+          plot.title.position = "plot")
+)
+
+f2 <- function(x) sprintf("%.2f", x)
+f3 <- function(x) sprintf("%.3f", x)
+```
+
+Lecture 12 turned a duration into a binary outcome, one row per regime per spell year, and fitted it with a `glm()`. It reported this table:
+
+```{r headline}
+#| echo: false
+knitr::kable(data.frame(term = c("lgdp", "oil"),
+                        Estimate = c(-0.73, -0.53),
+                        `Std. Error` = c(0.09, 0.21),
+                        check.names = FALSE))
+```
+
+The research question is the lecture's: **do oil-producing regimes last longer, and by how much?** In section we work through the lecture's own numbers, one step of the pipeline at a time. Slide 17 named a second way to get the same $\beta$, the Cox model, in a single bullet; Part 7 builds it properly, as reading for home.
+
+## Getting this running
+
+This page is rendered from `section06.qmd`, so if you change the code you change the document.
+
+```bash
+git clone --filter=blob:none --sparse https://github.com/ddekadt/cornell-govt-6039.git
+cd cornell-govt-6039
+git sparse-checkout set sections/section06
+cd sections/section06
+quarto render section06.qmd
+```
+
+The R packages are `survival` (ships with R), `ggplot2` and `patchwork`. Only Part 7 fits any models.
+
+# Part 1: why durations need their own tools
+
+**1.1** Suppose you ran OLS of `time` on `lgdp` and `oil`, one row per regime. What goes wrong with the rows where `status` $=0$? What if you simply dropped them?
+
+**1.2** Suppose instead you ran a logit of `status` on `lgdp` and `oil`, one row per regime. What information does this throw away?
+
+# Part 2: Kaplan--Meier by hand
+
+```{=latex}
+\needspace{10\baselineskip}
+```
+
+The first three spell years of the lecture's regime data (slide 6):
+
+| Spell year $j$ | Standing at start, $r_j$ | Ended during year, $q_j$ |
+|:--:|:--:|:--:|
+| 1 | 205 | 7 |
+| 2 | 198 | 2 |
+| 3 | 196 | 3 |
+
+**2.1** Compute $\hat h_1$, $\hat h_2$, $\hat h_3$ and $\hat S(3)$.
+
+**2.2** Write $\hat S(3)$ as a product of fractions and simplify. What does it reduce to, and why? When will Kaplan--Meier *not* reduce to this?
+
+**2.3** Suppose 4 regimes were last observed at the end of spell year 3, still standing. What is $r_4$? Why can we no longer just report "the share of regimes still standing"?
+
+**2.4** Kaplan--Meier assumes *independent censoring*. Describe a data-collection rule under which this would fail for regime duration, and say which way $\hat S(t)$ would be biased.
+
+# Part 3: reshape and fit
+
+**3.1** After `survSplit()`, the country-year data has 3,492 rows; there are 205 regimes. Where does 3,492 come from? What is the average observed spell length?
+
+**3.2** What values does `status` take across country 15's rows? Across country 16's?
+
+**3.3** The discrete-time hazard model gives $\hat\beta_{\text{lgdp}} = -0.73$ (s.e. 0.09) and $\hat\beta_{\text{oil}} = -0.53$ (s.e. 0.21).
+
+**(a)** What is the hazard ratio for a one-unit increase in `lgdp`?
+
+**(b)** For a doubling of GDP per capita? For a 10% increase?
+
+**(c)** What is the hazard ratio for `oil`, with a 95% confidence interval?
+
+**(d)** Write one sentence interpreting the `oil` estimate for a non-specialist.
+
+**3.4** *(Optional, in R.)* Refit with `link = "logit"`, and fit the Cox model from Part 7. How much do the coefficients move, and why?
+
+# Part 4: from hazards back to survival
+
+**4.1** Let units $A$ and $B$ have hazard ratio $\mathrm{HR} = \exp\{(x_B - x_A)^\top\beta\}$. Using the cloglog model, show that $1-h_{Bj} = (1-h_{Aj})^{\mathrm{HR}}$ in every spell year, and hence that $S_B(t) = S_A(t)^{\mathrm{HR}}$.
+
+**4.2** On slide 13, read $\hat S(20)$ off both curves. Use the result above to recover the hazard ratio between the two countries, and then the gap in `lgdp` between its 25th and 75th percentiles. How many times richer is the 75th-percentile country?
+
+**4.3** The hazard ratio is the same in every spell year. Is the gap in survival, $\hat S_B(t) - \hat S_A(t)$, also constant? What happens to it as $t$ grows large?
+
+# Part 5: when proportional hazards fails
+
+**5.1** Starting from oil's hazard ratio in spell year $j$, $\exp(\beta_1 + \beta_2 \log j)$, derive $j^{*} = \exp(-\beta_1/\beta_2)$. What must be true of the signs of $\beta_1$ and $\beta_2$ for $j^{*} > 1$?
+
+**5.2** From slide 15, what are the signs of $\beta_1$ and $\beta_2$? Describe oil's effect in words.
+
+**5.3** On slide 7, the raw Kaplan--Meier curves for oil and non-oil regimes do not cross until the late 20s, yet on slide 15 the hazards cross around year 18. Give two reasons.
+
+**5.4** Why do the bands on slide 15 widen so much after $j^{*}$?
+
+**5.5** Revisit your sentence from 3.3(d). What is the single proportional-hazards `oil` coefficient actually summarizing?
+
+# Part 6: two traps, then an exit ticket
+
+**6.1** A paper finds the yearly hazard of collapse falls with regime age and concludes that regimes consolidate. Give an explanation under which no regime becomes any more stable.
+
+**6.2** Regimes can end through an election or a coup. You study electoral exits and treat coups as censored. What does this assume, and when would it be a problem?
+
+**6.3 Exit ticket.** What does a predicted survival curve tell you that a hazard ratio does not?
+
+# Part 7: take-home, the Cox model
+
+This part is reading for after section. Lecture 12 fitted the yearly hazard with one intercept per spell year, $\gamma_j$; slide 17 named a model that estimates $\beta$ without them. Here we build it on a simulated stand-in for the lecture's regimes, with five figures and three short questions.
+
+## The data
+
+The running example is the lecture's: 205 regimes, each on its own clock from the year it began, watched until it ended or until 2024. The covariates are log GDP per capita and an oil-producer indicator. As in Section 4, the data-generating process is known, so every estimate below can be checked against a truth.
+
+```{r data}
+simulate_regimes <- function(n = 205, seed = 260, lambda = 0.036,
+                             beta_lgdp = -0.73, beta_oil = c(-1.7, 0.59)) {
+  set.seed(seed)
+  lgdp  <- pmin(pmax(rnorm(n, 8.0, 1.0), 5.8), 10.6)
+  oil   <- rbinom(n, 1, 0.25)
+  years <- 1990:2022
+  start <- sample(years, n, replace = TRUE, prob = exp(-(years - 1990) / 15))
+  # continuous-time hazard  lambda * exp(beta_lgdp * (lgdp - 8)) * HR_oil(t),
+  # with HR_oil(t) = exp(b1 + b2 * log t): protective early, harmful late
+  b    <- beta_oil[2] * oil
+  rate <- lambda * exp(beta_lgdp * (lgdp - 8) + beta_oil[1] * oil) / (1 + b)
+  T    <- (rexp(n) / rate)^(1 / (1 + b))      # inverts the cumulative hazard
+  last <- 2024 - start + 1                    # spell years observed by 2024
+  data.frame(start_year = start,
+             time   = pmin(ceiling(T), last),
+             status = as.integer(ceiling(T) <= last),
+             lgdp   = round(lgdp, 2), oil = oil)
+}
+
+# Drop the instructor's copy in as data/countries.rds to use it instead.
+countries <- if (file.exists("data/countries.rds")) readRDS("data/countries.rds") else
+             simulate_regimes()
+
+head(countries, 4)
+c(regimes = nrow(countries), ended = sum(countries$status),
+  country_years = sum(countries$time))
+```
+
+::: {.callout-warning}
+## A stand-in for the lecture data, not a copy
+The function rebuilds the lecture's setup with $\beta_{\text{lgdp}} = -0.73$ and the time-varying oil effect of slides 14--15 built in: oil's hazard ratio is $\exp(-1.7 + 0.59\log t)$, which crosses 1 at $t^{*} = e^{1.7/0.59} \approx 18$. It is not the instructor's draw, so it has `r sum(countries$time)` country-years rather than 3,492. **This part uses this draw; Parts 1 to 6 use the numbers printed on the slides.** If you get the original data, save it as `data/countries.rds` and the document re-renders against it.
+:::
+
+## The model
+
+The discrete-time model of Lecture 12 gives each spell year its own intercept. Let the years shrink to instants and the intercepts become a curve:
+
+$$
+h(t \mid x_i) \;=\; h_0(t)\,\exp(x_i^\top\beta).
+$$
+
+The $\beta$ are the same log hazard ratios as before, and $\log h_0(t)$ plays the role of the $\gamma_j$. Cox's idea is that $\beta$ can be estimated without ever writing down $h_0(t)$. In R, the model runs on the one-row-per-regime data; no `survSplit()` is needed.
+
+```{r fit}
+fit_cox <- coxph(Surv(time, status) ~ lgdp + oil, data = countries)
+round(summary(fit_cox)$coefficients[, c("coef", "exp(coef)", "se(coef)")], 3)
+```
+
+Read these exactly as in Lecture 12: $e^{\hat\beta}$ is a hazard ratio. Here $\hat\beta_{\text{lgdp}} = `r f3(coef(fit_cox)["lgdp"])`$ against a true $-0.73$. The oil coefficient, `r f3(coef(fit_cox)["oil"])`, has no single true value to compare with, because in this simulation oil's effect changes sign over a regime's life. The last figure in this part shows what it is averaging.
+
+## Who ends next: the partial likelihood
+
+Take any year in which a regime ends. Every regime still standing at that moment, the **risk set**, could have been the one. Given that exactly one ended, the chance it was regime $i$ is its hazard over the risk set's total hazard:
+
+$$
+\frac{h_0(t)\,e^{x_i^\top\beta}}{\sum_{k \in R(t)} h_0(t)\,e^{x_k^\top\beta}}
+\;=\;
+\frac{e^{x_i^\top\beta}}{\sum_{k \in R(t)} e^{x_k^\top\beta}} .
+$$
+
+The baseline $h_0(t)$ multiplies the top and every term at the bottom, so it cancels. @fig-riskset shows one such moment for twelve regimes from the simulated data.
+
+```{r}
+#| label: fig-riskset
+#| echo: false
+#| fig-height: 4.4
+#| fig-cap: "Left: twelve simulated regimes on their own clocks. Filled points ended; open points were still standing in 2024 (censored). Blue regimes have no oil, orange regimes do. At the dashed line one regime ends; the regimes drawn in full are the risk set at that moment. Right: each one's chance of being the regime that ended, $e^{x_k^\\top\\hat\\beta}/\\sum_{R} e^{x_j^\\top\\hat\\beta}$, using the fitted coefficients. The outlined bar is the one that actually ended; its height is this event's term in the partial likelihood."
+set.seed(4)
+pick <- countries[c(sample(which(countries$status == 1), 7),
+                    sample(which(countries$status == 0), 5)), ]
+pick <- pick[order(-pick$time, pick$status), ]
+pick$row <- factor(seq_len(nrow(pick)))
+
+ev     <- table(pick$time[pick$status == 1])
+cand   <- as.numeric(names(ev)[ev == 1])          # years with a single ender
+t_star <- cand[which.min(abs(sapply(cand, function(t) sum(pick$time >= t)) - 7))]
+pick$at_risk <- pick$time >= t_star
+pick$ender   <- pick$time == t_star & pick$status == 1
+w <- exp(as.matrix(pick[, c("lgdp", "oil")]) %*% coef(fit_cox))[, 1]
+pick$p <- ifelse(pick$at_risk, w / sum(w[pick$at_risk]), NA)
+pick$col <- ifelse(pick$oil == 1, pal[["orange"]], pal[["blue"]])
+pick$lab <- sprintf("lgdp %.1f%s", pick$lgdp, ifelse(pick$oil == 1, ", oil", ""))
+
+left <- ggplot(pick, aes(y = row)) +
+  geom_segment(aes(x = 0, xend = time, yend = row, alpha = at_risk),
+               colour = pick$col, linewidth = 1.1) +
+  geom_point(aes(x = time, alpha = at_risk), colour = pick$col, size = 2.4,
+             shape = ifelse(pick$status == 1, 16, 21), fill = "white", stroke = 1) +
+  geom_vline(xintercept = t_star, linetype = "dashed", colour = ink2) +
+  annotate("text", x = t_star + 0.4, y = nrow(pick) + 0.6, hjust = 0, size = 3.2,
+           colour = ink2, label = sprintf("t = %d: %d regimes at risk",
+                                          t_star, sum(pick$at_risk))) +
+  scale_alpha_manual(values = c(`FALSE` = 0.25, `TRUE` = 1)) +
+  scale_y_discrete(labels = pick$lab) +
+  coord_cartesian(ylim = c(0.5, nrow(pick) + 1), clip = "off") +
+  labs(x = "Spell year", y = NULL)
+
+right <- ggplot(subset(pick, at_risk), aes(x = p, y = row)) +
+  geom_col(fill = subset(pick, at_risk)$col, width = 0.65,
+           colour = ifelse(subset(pick, at_risk)$ender, ink, NA), linewidth = 0.8) +
+  geom_text(aes(label = sprintf("%.2f", p)), hjust = -0.2, size = 3, colour = ink2) +
+  scale_y_discrete(drop = FALSE, labels = NULL) +
+  scale_x_continuous(limits = c(0, max(pick$p, na.rm = TRUE) * 1.35),
+                     breaks = NULL) +
+  coord_cartesian(ylim = c(0.5, nrow(pick) + 1)) +
+  labs(x = "Chance it is this one", y = NULL)
+
+left + right + plot_layout(widths = c(2.3, 1))
+```
+
+Multiply one such term for every event and you have the **partial likelihood**:
+
+$$
+L(\beta) \;=\; \prod_{m} \frac{\exp(x_{(m)}^\top\beta)}{\sum_{k \in R_m}\exp(x_k^\top\beta)} ,
+$$
+
+where $m$ runs over event times and $x_{(m)}$ belongs to the regime that ended at the $m$-th. Censored regimes never appear in a numerator, but they sit in every denominator until they leave the data, exactly as they sat in Kaplan--Meier's $r_j$. $\hat\beta$ is the value that makes the observed sequence of "who ended next" most likely.
+
+**7.1** Three regimes are still standing at an event time: two oil producers and one non-oil regime, all at the same `lgdp`. One of them ends. Using a hazard ratio of 0.59 for `oil`, what is the probability that the non-oil regime is the one that ended? Each oil regime?
+
+## Only the order of events matters
+
+Because each term compares regimes at the same moment, the partial likelihood never uses the *gaps* between events. @fig-order makes the point by brute force: it refits the model after cubing every duration.
+
+```{r}
+#| label: fig-order
+#| echo: false
+#| fig-height: 3.6
+#| fig-cap: "Profile partial log-likelihood for the lgdp coefficient, relative to its maximum. Blue line: durations in years. Orange points: every duration cubed. The two coincide exactly, because cubing preserves the order of events and so every risk set. Solid vertical line: the estimate; dashed: the true value, -0.73."
+b_grid <- seq(-1.4, -0.2, by = 0.02)
+profile_pl <- function(tt) sapply(b_grid, function(b)
+  coxph(Surv(tt, status) ~ oil + offset(b * lgdp), data = countries)$loglik[2])
+pl_years <- profile_pl(countries$time)
+pl_cubed <- profile_pl(countries$time^3)
+max_gap  <- max(abs(pl_years - pl_cubed))
+
+prof <- data.frame(b = b_grid, years = pl_years - max(pl_years),
+                   cubed = pl_cubed - max(pl_cubed))
+ggplot(prof, aes(b)) +
+  geom_vline(xintercept = coef(fit_cox)["lgdp"], colour = ink, linewidth = 0.4) +
+  geom_vline(xintercept = -0.73, colour = ref, linetype = "dashed") +
+  geom_line(aes(y = years), colour = pal[["blue"]], linewidth = 0.9) +
+  geom_point(data = prof[seq(1, nrow(prof), by = 4), ], aes(y = cubed),
+             colour = pal[["orange"]], size = 1.8) +
+  coord_cartesian(ylim = c(-8, 0.3)) +
+  labs(x = expression(paste("Coefficient on lgdp, ", beta[lgdp])),
+       y = "Log partial likelihood\n(relative to maximum)")
+```
+
+The largest gap between the two curves is `r if (max_gap == 0) "exactly zero" else paste0(format(max_gap, digits = 2), ", which is rounding error")`.
+
+**7.2** Would your answer to 7.1 change if the event happened in spell year 2 rather than spell year 20? What does @fig-order tell you about what the Cox model uses from the data?
+
+## Survival curves without a baseline
+
+```{r}
+#| label: fig-surv
+#| echo: false
+#| fig-height: 3.8
+#| fig-cap: "Predicted survival from the Cox model for two countries without oil, lgdp at its 25th (blue) and 75th (orange) percentiles, from survfit(fit_cox, newdata = ...). Dashed lines are the true survival curves from the data-generating process. Compare slide 13."
+nd <- data.frame(lgdp = unname(quantile(countries$lgdp, c(0.25, 0.75))), oil = 0)
+sf <- survfit(fit_cox, newdata = nd)
+cur <- data.frame(time = rep(c(0, sf$time), 2),
+                  surv = c(1, sf$surv[, 1], 1, sf$surv[, 2]),
+                  who  = rep(c("q25", "q75"), each = length(sf$time) + 1))
+tt  <- seq(0, max(sf$time), by = 0.25)
+tru <- data.frame(time = rep(tt, 2),
+                  surv = c(exp(-0.036 * exp(-0.73 * (nd$lgdp[1] - 8)) * tt),
+                           exp(-0.036 * exp(-0.73 * (nd$lgdp[2] - 8)) * tt)),
+                  who  = rep(c("q25", "q75"), each = length(tt)))
+S20 <- summary(sf, times = 20)$surv
+
+ggplot(cur, aes(time, surv, colour = who)) +
+  geom_line(data = tru, linetype = "dashed", linewidth = 0.5) +
+  geom_step(linewidth = 0.9) +
+  scale_colour_manual(values = unname(pal[c("blue", "orange")])) +
+  annotate("text", x = max(sf$time) + 0.8, y = sf$surv[length(sf$time), ],
+           label = c("lgdp: 25th pct.", "lgdp: 75th pct."), hjust = 0,
+           size = 3.3, colour = unname(pal[c("blue", "orange")])) +
+  scale_x_continuous(limits = c(0, max(sf$time) + 9)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  labs(x = "Spell year", y = expression(hat(S)(t ~ "|" ~ x)))
+```
+
+**7.3** The Cox model never estimates $h_0(t)$, yet @fig-surv shows survival curves. Where do they come from?
+
+## Cox or the discrete-time model?
+
+| | Discrete-time cloglog | Cox |
+|:--|:--|:--|
+| Time | Genuinely discrete (years, terms) | Continuous, with few ties |
+| Baseline | Estimated: inspect the $\hat\gamma_j$ | Not estimated; recovered afterward if needed |
+| Data | One row per unit-period | One row per unit; split only for time-varying covariates |
+| Non-proportional hazards | Interact with `log(time)` | Test with `cox.zph()`; model with `tt()` or split data |
+| Fit with | `glm(..., binomial(link = "cloglog"))` | `coxph()` |
+
+Same $\beta$, same proportional-hazards and independent-censoring assumptions. Choose by how time is measured and whether you need the baseline. @fig-compare checks the "same $\beta$" claim on 100 fresh draws from the simulation.
+
+```{r compare}
+#| cache: true
+compare_once <- function(seed) {
+  d  <- simulate_regimes(seed = seed)
+  cy <- survSplit(Surv(time, status) ~ ., data = d,
+                  cut = 1:max(d$time), id = "country")
+  cl <- coef(glm(status ~ factor(time) + lgdp + oil,
+                 family = binomial(link = "cloglog"), data = cy))[c("lgdp", "oil")]
+  ef <- coef(coxph(Surv(time, status) ~ lgdp + oil, data = d))
+  br <- coef(coxph(Surv(time, status) ~ lgdp + oil, data = d, ties = "breslow"))
+  data.frame(seed = seed, term = c("lgdp", "oil", "lgdp", "oil"),
+             ties = rep(c("Efron (default)", "Breslow"), each = 2),
+             gap  = c(ef - cl, br - cl))
+}
+sims <- do.call(rbind, lapply(1:100, compare_once))
+round(tapply(abs(sims$gap), sims[, c("ties", "term")], mean), 3)
+```
+
+```{r}
+#| label: fig-compare
+#| echo: false
+#| fig-height: 3.2
+#| fig-cap: "Cox estimate minus discrete-time cloglog estimate, on 100 simulated datasets of 205 regimes with yearly time. With Efron's handling of tied event years (R's default) the two models agree to about two decimal places; Breslow's cruder approximation pulls the Cox estimates slightly toward zero."
+ggplot(sims, aes(gap, ties, colour = ties)) +
+  geom_vline(xintercept = 0, colour = ref) +
+  geom_jitter(height = 0.15, width = 0, size = 1.4, alpha = 0.7) +
+  facet_wrap(~ term) +
+  theme(panel.spacing = unit(1.5, "lines")) +
+  scale_colour_manual(values = unname(pal[c("orange", "blue")])) +
+  labs(x = "Cox minus cloglog", y = NULL)
+```
+
+## When proportional hazards fails, again
+
+Part 5 asked what a single `oil` coefficient summarizes when oil's effect changes sign. The simulation has slide 15's crossing built in, so we can look. Each point is a scaled Schoenfeld residual for `oil` plus the Cox estimate, so a smooth through the points traces how oil's coefficient moves with time.
+
+```{r}
+#| label: fig-zph
+#| echo: false
+#| fig-height: 3.8
+#| fig-cap: "Oil's coefficient over the life of a regime, simulated data. Grey points: scaled Schoenfeld residuals from cox.zph(). Orange: a loess smooth through them. Black dashed: the true log hazard ratio, -1.7 + 0.59 log t. Blue: the single proportional-hazards estimate, which averages over an effect that changes sign."
+zph_test <- cox.zph(fit_cox)
+zph_id   <- cox.zph(fit_cox, transform = "identity")
+zd <- data.frame(t = zph_id$x, b = zph_id$y[, "oil"])
+truth_b <- data.frame(t = seq(1, max(zd$t), length.out = 200))
+truth_b$b <- -1.7 + 0.59 * log(truth_b$t)
+
+ggplot(zd, aes(t, b)) +
+  geom_hline(yintercept = 0, colour = ref, linewidth = 0.3) +
+  geom_point(colour = ref, size = 1.2, alpha = 0.7) +
+  geom_smooth(method = "loess", se = FALSE, colour = pal[["orange"]],
+              linewidth = 0.9, span = 0.9) +
+  geom_line(data = truth_b, colour = ink, linetype = "dashed", linewidth = 0.6) +
+  geom_hline(yintercept = coef(fit_cox)["oil"], colour = pal[["blue"]],
+             linewidth = 0.8) +
+  coord_cartesian(ylim = c(-4, 3)) +
+  labs(x = "Spell year", y = expression(paste("Oil coefficient, ", beta[oil](t))))
+```
+
+The `cox.zph()` test of proportional hazards for oil gives $p = `r f3(zph_test$table["oil", "p"])`$ here. The blue line, `r f3(coef(fit_cox)["oil"])`, sits below zero because most of the information comes from the early years, where oil is protective; it matches the true curve only around year `r round(exp((coef(fit_cox)[["oil"]] + 1.7) / 0.59))`.
+
+# References
+
+Box-Steffensmeier, J. M. & Jones, B. S. (2004) *Event History Modeling: A Guide for Social Scientists*. Cambridge University Press.
+
+Cox, D. R. (1972) "Regression Models and Life-Tables." *Journal of the Royal Statistical Society: Series B* 34(2): 187-202. doi:[10.1111/j.2517-6161.1972.tb00899.x](https://doi.org/10.1111/j.2517-6161.1972.tb00899.x)
+
+Efron, B. (1977) "The Efficiency of Cox's Likelihood Function for Censored Data." *Journal of the American Statistical Association* 72(359): 557-565. doi:[10.1080/01621459.1977.10480613](https://doi.org/10.1080/01621459.1977.10480613)
+
+Grambsch, P. M. & Therneau, T. M. (1994) "Proportional Hazards Tests and Diagnostics Based on Weighted Residuals." *Biometrika* 81(3): 515-526. doi:[10.1093/biomet/81.3.515](https://doi.org/10.1093/biomet/81.3.515)
+
+James, G., Witten, D., Hastie, T. & Tibshirani, R. (2021) *An Introduction to Statistical Learning*, 2nd ed., 11.1-11.5. <https://www.statlearning.com>
+
+Licht, A. A. (2011) "Change Comes with Time: Substantive Interpretation of Nonproportional Hazards in Event History Analysis." *Political Analysis* 19(2): 227-243. doi:[10.1093/pan/mpq039](https://doi.org/10.1093/pan/mpq039)
+
+Prentice, R. L. & Gloeckler, L. A. (1978) "Regression Analysis of Grouped Survival Data with Application to Breast Cancer Data." *Biometrics* 34(1): 57-67. doi:[10.2307/2529588](https://doi.org/10.2307/2529588)
+
+Rodríguez, G. *Generalized Linear Models*, Princeton lecture notes, ch. 7. <https://grodri.github.io/glms>
+
+Tsiatis, A. (1975) "A Nonidentifiability Aspect of the Problem of Competing Risks." *Proceedings of the National Academy of Sciences* 72(1): 20-22. doi:[10.1073/pnas.72.1.20](https://doi.org/10.1073/pnas.72.1.20)
