@@ -1,0 +1,893 @@
+---
+title: "Section 9: Forests, Boosting, Splines and GAMs on Survey Data"
+subtitle: "GOVT 6039 | Fall 2026 | Discussion section, 11 November 2026 | Instructor version"
+solutions: true
+filters:
+  - section09.lua
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    embed-resources: true
+    code-fold: show
+    code-summary: "code"
+    code-tools: true
+    theme: cosmo
+    html-math-method: mathjax
+    fig-width: 7
+    fig-height: 4
+  pdf:
+    toc: true
+    toc-depth: 2
+    geometry: margin=1in
+    colorlinks: true
+    fig-width: 7
+    fig-height: 4
+    fig-pos: "H"
+    include-in-header:
+      text: |
+        \usepackage{needspace}
+        \usepackage{fvextra}
+        \usepackage{xcolor}
+        \usepackage{tcolorbox}
+        \tcbuselibrary{breakable,skins}
+        \definecolor{algoline}{HTML}{2A78D6}
+        \definecolor{algobg}{HTML}{F4F7FC}
+        \newtcolorbox{algobox}[1]{enhanced, breakable, colback=algobg, colframe=algoline, boxrule=0pt, leftrule=2.5pt, sharp corners, left=10pt, right=10pt, top=7pt, bottom=7pt, before upper={\setlength{\parskip}{4pt}{\small\bfseries\color{algoline}\MakeUppercase{#1}}\par\smallskip}}
+        \definecolor{solred}{HTML}{B3261E}
+        \newtcolorbox{solbox}{enhanced, breakable, colback=white, colframe=solred, coltext=solred, boxrule=0pt, leftrule=1.5pt, sharp corners, left=9pt, right=0pt, top=1pt, bottom=1pt, before skip=6pt, after skip=10pt, before upper={\setlength{\parskip}{5pt}}}
+        \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+```{r setup}
+#| include: false
+knitr::opts_chunk$set(fig.align = "center", dpi = 140)
+library(ggplot2)
+library(patchwork)
+library(ranger)    # bagging and random forests
+library(gbm)       # boosting
+library(splines)   # ns()
+library(mgcv)      # GAMs
+
+pal  <- c(blue = "#2a78d6", orange = "#eb6834", aqua = "#1baf7a", yellow = "#eda100", violet = "#7a5cc9")
+ink  <- "#0b0b0b"; ink2 <- "#52514e"; ref <- "#8a8a85"
+
+theme_set(
+  theme_minimal(base_size = 12) +
+    theme(panel.grid.minor = element_blank(),
+          panel.grid.major = element_line(colour = "grey92", linewidth = 0.3),
+          axis.title = element_text(colour = ink2, size = 10),
+          plot.title = element_text(colour = ink, face = "bold", size = 13),
+          plot.subtitle = element_text(colour = ink2, size = 10),
+          plot.caption = element_text(colour = ink2, size = 9, hjust = 0),
+          strip.text = element_text(colour = ink, face = "bold"),
+          legend.position = "bottom", legend.title = element_blank(),
+          plot.title.position = "plot")
+)
+
+f1 <- function(x) sprintf("%.1f", x)
+f2 <- function(x) sprintf("%.2f", x)
+f3 <- function(x) sprintf("%.3f", x)
+f4 <- function(x) sprintf("%.4f", x)
+pc <- function(x, d = 1) sprintf("%.*f%%", d, 100 * x)
+fb <- function(x) format(x, big.mark = ",")
+```
+
+Lectures 16 and 17 estimate $\pi(x) = P(Y = 1 \mid X = x)$ for polling stations and use it to decide where to send 500 election monitors. Those data were simulated, which is why the lecture could print a row called "Truth". Here we apply the methods that come after a single tree, **bagging and random forests, boosting, splines and GAMs**, to a real survey, where there is no "Truth" row. Each part sets out the algorithm, fits it, and asks what the output says about voters. The question: **how well can we tell who voted for Donald Trump in 2016 from who they are?**
+
+Two reasons to care. A campaign has a voter file with background characteristics on everyone, and attitudes on almost no one. It has to decide which doors to knock on, so like the monitoring mission it needs an **order**: the people with the highest $\hat\pi$ should be the ones most likely to be its voters. And there is a live argument in political behaviour about the answer. Kim and Zilinsky (2024) show that demographics alone predict the presidential vote poorly: about 64% of votes correct across the ANES from 1952 to 2020, whether they use logit or random forests.
+
+The data are the 2016 Cooperative Congressional Election Study (CCES), a national survey of 64,600 adults. We keep the 38,615 respondents who reported a presidential vote and answered every item we use. $Y_i = 1$ if respondent $i$ says they voted for Trump, and 0 if they voted for anyone else. The analysis is unweighted, so everything below describes this sample of respondents. As in lecture, we start with six features:
+
+| Variable | Meaning |
+|-------|--------------|
+| `age` | age in years |
+| `female` | 1 if a woman |
+| `collegeed` | 1 if the respondent has a college degree |
+| `race` | White, Black, Hispanic, Asian, Other |
+| `famincr` | family income, 1 (under \$10,000) to 12 (\$150,000 or more) |
+| `lrelig` | religiosity scale built from four items (born-again, importance of religion, church attendance, prayer); mean 0, higher is more religious |
+
+The lecture trained on 5,000 stations. We train on a random 5,000 respondents and test on the other 33,615.
+
+## Getting this running
+
+```bash
+git clone --filter=blob:none --sparse https://github.com/ddekadt/cornell-govt-6039.git
+cd cornell-govt-6039
+git sparse-checkout set sections/section09
+cd sections/section09
+quarto render section09_instructor.qmd
+```
+
+**Run time.** Refitting everything takes about 2 to 3 minutes on a laptop (about 2.5 minutes on the 2-core machine that rendered this file). The slow steps are marked with their approximate time. By default they are not rerun: their results are saved in `data/cache/`, and the switch below loads them, so the whole document renders in well under a minute. Set `refit <- TRUE` to recompute every saved result; a missing cache file is always recomputed and saved.
+
+```{r}
+#| label: cache-switch
+# TRUE: refit every model (about 2 to 3 minutes). FALSE: load saved estimates.
+refit <- FALSE
+
+# load data/cache/<name>.rds if it exists; otherwise compute the result and save it there
+cached <- function(name, expr) {
+  path <- file.path("data", "cache", paste0(name, ".rds"))
+  if (!refit && file.exists(path)) return(readRDS(path))
+  value <- expr
+  dir.create(dirname(path), showWarnings = FALSE, recursive = TRUE)
+  saveRDS(value, path, compress = "xz")
+  value
+}
+```
+
+The R packages are `ggplot2`, `patchwork`, `ranger`, `gbm`, `splines` and `mgcv`; the appendix also uses `catboost`, which is optional (installation instructions are in the appendix and in `README.md`). Boosting uses `gbm`, the package ISL uses, because its three arguments are exactly the lecture's three tuning parameters; the equivalent `xgboost` call is shown in Part 3. The folder contains everything needed to reproduce the document: `data/cces16_vote.csv` (the analysis file), `data/cache/` (saved results of the slow steps), `data/learning_curve.rds` (results for the figure in 6.2), `learning_curve.R` (which recomputes them, about 3 to 4 minutes) and `prep_data.R` (which rebuilds the analysis file from the `TV16` data in Steven Miller's `stevedata` package).
+
+# Part 1: the standard model
+
+```{r}
+#| label: data
+cces <- read.csv("data/cces16_vote.csv")
+cces$race <- factor(cces$race, levels = c("White", "Black", "Hispanic", "Asian", "Other"))
+
+set.seed(6039)
+in_train <- sample(nrow(cces), 5000)
+train <- cces[in_train, ]
+test  <- cces[-in_train, ]
+```
+
+The baseline is the logit a political scientist would fit, each feature entered once:
+
+```{r}
+#| label: logit
+f <- trump ~ age + female + collegeed + race + famincr + lrelig
+
+fit_logit <- glm(f, data = train, family = binomial)
+p_logit   <- predict(fit_logit, test, type = "response")
+round(summary(fit_logit)$coefficients[, 1:3], 3)
+```
+
+We score every model the same three ways on the test respondents: accuracy when we label $\hat y_i = 1\{\hat\pi_i \ge 0.5\}$; the AUC, $P(\hat\pi_i > \hat\pi_j \mid y_i = 1, y_j = 0)$, the chance that a randomly chosen Trump voter gets a higher $\hat\pi$ than a randomly chosen other voter; and the share of Trump voters among the 1,000 respondents with the highest $\hat\pi$, which is what a campaign with 1,000 door-knocks cares about.
+
+```{r}
+#| label: scoring
+acc   <- function(p, y = test$trump) mean((p >= 0.5) == y)
+auc   <- function(p, y = test$trump) {
+  n1 <- sum(y == 1); n0 <- sum(y == 0)
+  (sum(rank(p)[y == 1]) - n1 * (n1 + 1) / 2) / (n1 * n0)
+}
+top_k <- function(p, k = 1000, y = test$trump) mean(y[order(-p)[1:k]])
+
+round(c(share_trump = mean(test$trump), accuracy = acc(p_logit), auc = auc(p_logit), top_1000 = top_k(p_logit)), 3)
+```
+
+**1.1** The logit classifies `r pc(acc(p_logit), 0)` of test respondents correctly. Before deciding whether that is good: what would you score by labelling everybody "not Trump"? Is the result higher or lower than you expected from six characteristics that dominate election commentary?
+
+::: sol
+Labelling everybody "not Trump" scores `r pc(mean(test$trump == 0))`, because only `r pc(mean(test$trump))` voted for him. So six features buy about `r f1(100 * (acc(p_logit) - mean(test$trump == 0)))` points of accuracy over knowing nothing. In lecture the same comparison was 0.80 against 0.74. Six characteristics that carry so much of the election commentary leave three voters in ten misclassified, which is Kim and Zilinsky's point. The AUC of `r f2(auc(p_logit))` says the same thing without a threshold: take one Trump voter and one other voter, and the model ranks them the right way round `r pc(auc(p_logit), 0)` of the time, against 50% for a coin.
+:::
+
+**1.2** The campaign takes the 1,000 highest $\hat\pi$. `r pc(top_k(p_logit), 0)` of them are Trump voters, against `r pc(mean(test$trump), 0)` at random. Who are these people?
+
+```{r}
+#| label: profile
+top <- test[order(-p_logit)[1:1000], ]
+profile <- rbind(`Top 1,000`  = c(White = mean(top$race == "White"), College = mean(top$collegeed),
+                                  Women = mean(top$female), Age = mean(top$age), Religiosity = mean(top$lrelig)),
+                 `Everyone`   = c(mean(test$race == "White"), mean(test$collegeed),
+                                  mean(test$female), mean(test$age), mean(test$lrelig)))
+round(profile, 2)
+```
+
+::: sol
+The top 1,000 are `r pc(profile[1, "White"], 0)` White, `r pc(profile[1, "College"], 0)` college graduates, `r pc(profile[1, "Women"], 0)` women, on average `r round(profile[1, "Age"])` years old and `r f1(profile[1, "Religiosity"])` standard deviations above the mean on religiosity. Older, White, religious men without a degree: the model is the conventional wisdom, written down. That is the practical value of an AUC of `r f2(auc(p_logit))`: far from reliable on any one person, but the top of the list is `r f1(top_k(p_logit) / mean(test$trump))` times richer in Trump voters than the sample. The rest of the section asks whether more flexible models can do better than this, and what else they can tell us.
+:::
+
+# Part 2: bagging and a random forest
+
+::: {.algo title="The algorithms (Lecture 16)"}
+**Bootstrap.** Draw $n$ respondents from the training data with replacement, giving a sample $Z^{*b}$. Each respondent is left out with probability $(1 - 1/n)^n \approx e^{-1} \approx 0.37$; the respondents left out are the **out-of-bag** (OOB) set of that sample.
+
+**Bagging.** Draw $B$ bootstrap samples, grow a deep tree $\hat\pi^{*b}(x)$ on each, and average:
+$$\hat\pi_{\text{bag}}(x) = \frac{1}{B} \sum_{b=1}^{B} \hat\pi^{*b}(x).$$
+If each tree has variance $\sigma^2$ and any two are correlated $\rho$, then
+$$\operatorname{Var}\big[\hat\pi_{\text{bag}}(x)\big] = \rho\,\sigma^2 + \frac{1 - \rho}{B}\,\sigma^2 .$$
+More trees shrink only the second term.
+
+**Random forest.** The same, except that at every split only $m$ of the $p$ features, drawn at random, are candidates. This makes the trees less alike and lowers $\rho$. With $m = p$ it is bagging. `ranger`'s defaults for a probability forest are $m = \lfloor\sqrt{p}\rfloor$ (here 2) and leaves of at least 10 respondents, which is what we use.
+
+**Out-of-bag error.** Respondent $i$ is predicted only by the trees that did not see it, $\hat\pi^{\text{oob}}_i = \frac{1}{|\mathcal{B}_i|}\sum_{b \in \mathcal{B}_i} \hat\pi^{*b}(x_i)$, where $\mathcal{B}_i$ is the set of trees for which $i$ was out of bag. The OOB Brier score $\frac{1}{n}\sum_i (y_i - \hat\pi^{\text{oob}}_i)^2$ is a CV-like error estimate that needs no refitting.
+
+**Permutation importance.** For feature $j$, shuffle its values among the OOB respondents of each tree, so that it carries no information, and record how much the OOB Brier score rises:
+$$\text{VI}_j = \text{Brier}^{\text{oob}}\big(x_j \text{ permuted}\big) - \text{Brier}^{\text{oob}}.$$
+:::
+
+**2.1** Bagging and a forest, each with 500 trees. *Before the figure:* which will have the higher test AUC, and which term of the variance formula is your reason?
+
+```{r}
+#| label: forests
+grow <- function(m) ranger(update(f, factor(trump) ~ .), data = train, probability = TRUE,
+                           num.trees = 500, mtry = m, min.node.size = 10, seed = 6039,
+                           importance = "permutation")
+# refit: about 3 seconds each
+fit_bag <- cached("fit_bag", grow(6))      # m = p: bagging
+fit_rf  <- cached("fit_rf",  grow(2))      # m = 2: a random forest
+p_bag <- predict(fit_bag, test)$predictions[, 2]
+p_rf  <- predict(fit_rf,  test)$predictions[, 2]
+
+auc_by_B <- function(fit, B = c(1, 2, 5, 10, 20, 50, 100, 200, 500)) {
+  each <- predict(fit, test, predict.all = TRUE)$predictions[, 2, ]   # one column of pi-hat per tree
+  data.frame(B = B, auc = sapply(B, function(b) auc(rowMeans(each[, 1:b, drop = FALSE]))))
+}
+```
+
+```{r}
+#| label: fig-forests
+#| echo: false
+#| fig-height: 3.2
+#| fig-cap: "Test AUC as trees are added. Dashed line: the logit."
+# refit: about 10 seconds
+dB <- cached("auc_by_trees", rbind(cbind(auc_by_B(fit_bag), model = "Bagging (m = 6)"),
+                                  cbind(auc_by_B(fit_rf),  model = "Random forest (m = 2)")))
+ggplot(dB, aes(B, auc, colour = model)) +
+  geom_hline(yintercept = auc(p_logit), linetype = "dashed", colour = ref) +
+  geom_line(linewidth = 0.9) + geom_point(size = 1.6) +
+  scale_x_log10(breaks = c(1, 10, 100, 500)) +
+  scale_colour_manual(values = c(`Bagging (m = 6)` = pal[["orange"]], `Random forest (m = 2)` = pal[["blue"]])) +
+  labs(x = "Trees B (log scale)", y = "Test AUC")
+```
+
+::: sol
+The forest. Averaging more trees shrinks only the second term; the first, $\rho\sigma^2$, stays however large $B$ gets. Bagged trees are highly correlated because every one of them is free to open with the same strong features (religiosity and race), so $\rho$ is large. Restricting each split to 2 random features makes the trees less alike. At $B = 500$: bagging `r f3(auc(p_bag))`, forest `r f3(auc(p_rf))`, logit `r f3(auc(p_logit))`. The figure shows three more things. One deep tree ($B = 1$) scores about `r f2(dB$auc[dB$B == 1 & dB$model == "Bagging (m = 6)"])`, far below the logit: a single deep tree has low bias and very high variance. Averaging repairs most of that within 50 to 100 trees and then stops helping; more trees never hurt, so in practice $B$ is set large and not tuned. And 500 trees end up level with a ten-coefficient logit, which Part 6 returns to.
+:::
+
+**2.2** We choose $m$ on the out-of-bag respondents. Which $m$ has the lowest out-of-bag Brier score?
+
+```{r}
+#| label: oob
+oob <- data.frame(m = 1:6)
+# refit: about 5 seconds
+oob$oob_brier <- cached("oob_brier",
+                        sapply(oob$m, function(m) grow(m)$prediction.error))
+round(oob, 4)
+```
+
+::: sol
+$m = `r oob$m[which.min(oob$oob_brier)]`$, the value used above. The error is worst at $m = 6$ (bagging), in line with 2.1. No separate cross-validation is needed: each tree leaves out about 37% of the respondents, so every respondent is scored by the trees that never saw it. The out-of-bag Brier score of the best forest is `r f3(min(oob$oob_brier))`; a constant $\hat\pi$ at the base rate scores `r f3(mean((train$trump - mean(train$trump))^2))`.
+:::
+
+**2.3** A forest has no coefficients to read; permutation importance is the standard substitute. *Before the output:* rank the six features by how much you think the forest relies on them.
+
+```{r}
+#| label: importance
+imp <- sort(fit_rf$variable.importance, decreasing = TRUE)
+round(100 * imp / sum(imp), 1)                      # share of total importance, percent
+```
+
+```{r}
+#| label: importance-numbers
+#| echo: false
+impn <- c(lrelig = "religiosity", race = "race", age = "age", collegeed = "a college degree",
+          female = "sex", famincr = "family income")
+imps <- round(100 * imp / sum(imp))
+```
+
+::: sol
+In order: `r paste(sprintf("%s (%d%%)", impn[names(imp)], imps), collapse = ", ")`. Much of the commentary on 2016 was about education and income; the forest leans far more on `r impn[names(imp)[1]]` and `r impn[names(imp)[2]]`. Two cautions for applied use. Importance says how much the *predictions* depend on a feature, not the direction or the shape of the relationship, and not whether it is causal. And it is relative to this set of features: a feature can score low because the others already carry most of what it would tell us, which is one reading of the small number for income. Parts 4 and 5 recover direction and shape.
+:::
+
+# Part 3: boosting
+
+::: {.algo title="The algorithm (Lecture 16)"}
+Boosting builds a model $F(x)$ on the **log-odds** scale, with $\hat\pi(x) = \sigma\big(F(x)\big)$ and $\sigma(z) = 1/(1 + e^{-z})$:
+
+1. Start every respondent at the overall share: $F_0(x) = \log\frac{\bar y}{1 - \bar y}$.
+2. For $b = 1, \dots, B$:
+    a. compute the residuals $r_i = y_i - \sigma\big(F_{b-1}(x_i)\big)$, the negative gradient of the log loss;
+    b. fit a small regression tree $h_b$ of depth $d$ to the $r_i$;
+    c. take a small step in its direction: $F_b(x) = F_{b-1}(x) + \lambda\, h_b(x)$.
+3. Predict with $\hat\pi(x) = \sigma\big(F_B(x)\big)$, a sum of $B$ small trees.
+
+The three tuning parameters are the rounds $B$ (`n.trees`), the step $\lambda$ (`shrinkage`) and the depth $d$ (`interaction.depth`). A tree of depth $d$ involves at most $d$ features, so $d$ is also the highest order of interaction the model can contain: $d = 1$ gives an additive model. Unlike a forest, boosting can overfit as $B$ grows, so $B$ is chosen by CV. By default `gbm` fits each tree on a random half of the training data (`bag.fraction = 0.5`), which adds some of the variance reduction of bagging.
+:::
+
+```{r}
+#| label: boost
+#| results: hide
+boost <- function(lambda, d, B = 1500, form = f) {
+  set.seed(6039)
+  gbm(form, data = train, distribution = "bernoulli", n.trees = B, shrinkage = lambda,
+      interaction.depth = d, n.minobsinnode = 10, cv.folds = 5, n.cores = 1, verbose = FALSE)
+}
+# refit: about 8 seconds each (5-fold CV over 1,500 rounds)
+b_fast  <- cached("gbm_fast",  boost(lambda = 0.10, d = 3))
+b_slow  <- cached("gbm_slow",  boost(lambda = 0.02, d = 3))
+b_stump <- cached("gbm_stump", boost(lambda = 0.02, d = 1))
+```
+
+The same model with the lecture's `xgboost` (not run here):
+
+```{r}
+#| eval: false
+X_tr <- model.matrix(f, train)[, -1]
+fit_xgb <- xgboost(x = X_tr, y = factor(train$trump), nrounds = 500,
+                   learning_rate = 0.02, max_depth = 3)
+```
+
+**3.1** *Before the figure.* Sketch test AUC against rounds for $\lambda = 0.10$ and for $\lambda = 0.02$, both with depth 3. Which peaks first? What happens to each if we keep adding rounds? How is that different from adding trees to the forest in Part 2?
+
+```{r}
+#| label: fig-boost
+#| echo: false
+#| fig-height: 3.2
+#| fig-cap: "Test AUC as boosting rounds are added, depth 3. Dashed line: the logit. The test set is used here only to show the trade-off; B is chosen by CV on the training data."
+grid <- c(1, 2, 5, 10, 20, 35, 50, 75, 100, 150, 200, 300, 500, 750, 1000, 1500)
+curve_b <- function(fit, lab) data.frame(B = grid, model = lab,
+                                         auc = apply(predict(fit, test, n.trees = grid), 2, auc))
+dboost <- rbind(curve_b(b_fast, "lambda = 0.10"), curve_b(b_slow, "lambda = 0.02"))
+ggplot(dboost, aes(B, auc, colour = model)) +
+  geom_hline(yintercept = auc(p_logit), linetype = "dashed", colour = ref) +
+  geom_line(linewidth = 0.9) + geom_point(size = 1.4) +
+  scale_x_log10(breaks = c(1, 10, 100, 1000)) +
+  scale_colour_manual(values = c(`lambda = 0.10` = pal[["orange"]], `lambda = 0.02` = pal[["blue"]])) +
+  labs(x = "Rounds B (log scale)", y = "Test AUC")
+```
+
+```{r}
+#| label: boost-B
+B_cv <- function(fit) gbm.perf(fit, method = "cv", plot.it = FALSE)     # rounds with the lowest CV deviance
+tune <- data.frame(model = c("lambda 0.10, depth 3", "lambda 0.02, depth 3", "lambda 0.02, depth 1"),
+                   B_cv  = c(B_cv(b_fast), B_cv(b_slow), B_cv(b_stump)),
+                   cv_deviance = c(min(b_fast$cv.error), min(b_slow$cv.error), min(b_stump$cv.error)))
+tune$test_auc_at_B_cv <- c(auc(predict(b_fast,  test, n.trees = tune$B_cv[1])),
+                           auc(predict(b_slow,  test, n.trees = tune$B_cv[2])),
+                           auc(predict(b_stump, test, n.trees = tune$B_cv[3])))
+tune$test_auc_at_1500 <- c(auc(predict(b_fast,  test, n.trees = 1500)),
+                           auc(predict(b_slow,  test, n.trees = 1500)),
+                           auc(predict(b_stump, test, n.trees = 1500)))
+knitr::kable(tune, digits = c(0, 0, 4, 4, 4))
+```
+
+::: sol
+Big steps learn fast: $\lambda = 0.10$ is at its best within about a hundred rounds (CV picks $B = `r tune$B_cv[1]`$) and then fits noise, falling to `r f3(tune$test_auc_at_1500[1])` by round 1,500. Small steps need about five times as many rounds (CV picks $B = `r tune$B_cv[2]`$), end slightly higher and decay more slowly. This is the lecture's tuning figure on real data. The contrast with Part 2: in a forest $B$ is not a tuning parameter (more trees never hurt), in boosting it is the main one, and it is chosen by CV. At the CV-chosen $B$ the two step sizes score `r f4(tune$test_auc_at_B_cv[1])` and `r f4(tune$test_auc_at_B_cv[2])`. $\lambda$ and $B$ trade off against each other, so they are tuned together.
+:::
+
+**3.2** Depth 1 trees split once, on one feature, so a sum of them cannot contain an interaction. Compare the depth 1 and depth 3 rows of the table. What does the difference tell you about these voters?
+
+::: sol
+A sum of depth 1 trees is $\beta_0 + f_1(x_1) + \dots + f_6(x_6)$ on the log-odds scale: an **additive** model, with no interactions. Depth 3 allows interactions among up to three features. Depth 3 has the lower CV deviance (`r f4(tune$cv_deviance[2])` against `r f4(tune$cv_deviance[3])`) and the higher test AUC (`r f4(tune$test_auc_at_B_cv[2])` against `r f4(tune$test_auc_at_B_cv[3])`). The gap is small but consistent. In substantive terms: the effect of at least one characteristic depends on another, but most of what these six features say about the vote, they say separately. Part 5 finds one such interaction.
+:::
+
+```{r}
+#| label: boost-final
+fit_boost <- b_slow
+B_boost   <- tune$B_cv[2]
+p_boost   <- predict(fit_boost, test, n.trees = B_boost, type = "response")
+
+infl <- summary(fit_boost, n.trees = B_boost, plotit = FALSE)      # boosting's own importance measure
+setNames(round(infl$rel.inf, 1), infl$var)
+```
+
+::: {.sol label="Note"}
+Boosting's "relative influence" is the share of its total improvement in fit that came from splits on each feature. The top of the ranking is `r paste(impn[as.character(infl$var[1:3])], collapse = ", ")`; the forest's was `r paste(impn[names(imp)[1:3]], collapse = ", ")`. Two different algorithms and two different definitions of importance agree on the top two and on family income being last, and swap the order in the middle. That kind of agreement is worth checking before reporting an importance ranking, and small differences in rank should not be read into.
+:::
+
+# Part 4: splines, and what age does
+
+::: {.algo title="The models (Lecture 17)"}
+**Basis functions.** Replace $x$ by $J$ new columns $b_1(x), \dots, b_J(x)$ and fit an ordinary logit on them:
+$$\operatorname{logit} \pi(x) = \beta_0 + \sum_{j=1}^{J} \beta_j\, b_j(x).$$
+A cubic spline with knots $\xi_1, \dots, \xi_K$ uses $x, x^2, x^3$ and one term $(x - \xi_k)^3_+$ per knot, where $(u)_+ = \max(u, 0)$: a cubic between knots, joined smoothly at each knot.
+
+**Natural spline.** A cubic spline that is linear beyond the outermost knots, which tames the ends of the range where data are thin. `ns(x, df)` places $df - 1$ interior knots at quantiles of $x$, so $df = 1$ is a straight line. We choose $df$ by 10-fold CV.
+
+**Smoothing spline.** Put a knot at every value of $x$ and let a penalty $\lambda$ on total curvature decide how much $f(x) = \operatorname{logit}\pi(x)$ may bend:
+$$\hat f = \arg\min_f \Big\{ -\ell(f) + \lambda \int f''(x)^2\, dx \Big\},$$
+where $\ell$ is the log likelihood. Small $\lambda$: a wiggly curve. Large $\lambda$: a straight line. The **effective degrees of freedom** (edf) measure how many columns the penalized curve effectively uses; edf = 1 is a line.
+:::
+
+Importance told us that age matters, not how. A logit that is linear in age can only rise or fall at one pace. The points are the shares voting Trump in five-year age bins of the training data.
+
+```{r}
+#| label: fig-age-linear
+#| echo: false
+#| fig-height: 3
+#| fig-cap: "Share voting Trump by age in the training data (five-year bins), with a logit that is linear in age."
+bins <- aggregate(cbind(trump, age) ~ cut(age, c(17, seq(24, 84, 5), 99)), data = train, FUN = mean)
+ag   <- data.frame(age = 18:90)
+fit_age_lin <- glm(trump ~ age, data = train, family = binomial)
+ag$lin <- predict(fit_age_lin, ag, type = "response")
+ggplot(ag, aes(age, lin)) +
+  geom_point(data = bins, aes(age, trump), colour = ink2, size = 1.8) +
+  geom_line(colour = ref, linewidth = 0.9, linetype = "dashed") +
+  labs(x = "Age", y = "Share voting Trump")
+```
+
+**4.1** *Before the figure.* df = 1 is the straight line above. What do you expect the CV log loss to do as df goes from 1 to 10? Then read the right panel as an analyst: describe how support for Trump changes with age.
+
+```{r}
+#| label: cv-df
+log_loss <- function(p, y) -mean(y * log(p) + (1 - y) * log(1 - p))
+
+set.seed(6039)
+fold <- sample(rep(1:10, length.out = nrow(train)))
+cv_loss <- sapply(1:10, function(df) mean(sapply(1:10, function(k) {
+  fit <- glm(trump ~ ns(age, df = df), data = train[fold != k, ], family = binomial)
+  log_loss(predict(fit, train[fold == k, ], type = "response"), train$trump[fold == k])
+})))
+df_best <- which.min(cv_loss)
+df_best
+```
+
+```{r}
+#| label: fig-cv-df
+#| echo: false
+#| fig-height: 3.2
+#| fig-cap: "Left: 10-fold CV log loss of a natural spline in age, by degrees of freedom. Right: the fitted curves for df = 1, the CV choice, and df = 10."
+p1 <- ggplot(data.frame(df = 1:10, loss = cv_loss), aes(df, loss)) +
+  geom_line(colour = pal[["blue"]], linewidth = 0.9) + geom_point(colour = pal[["blue"]], size = 1.8) +
+  geom_point(data = data.frame(df = df_best, loss = min(cv_loss)), colour = pal[["orange"]], size = 3.2) +
+  scale_x_continuous(breaks = 1:10) +
+  labs(x = "Degrees of freedom", y = "10-fold CV log loss")
+dfs  <- unique(c(1, df_best, 10))
+dns  <- do.call(rbind, lapply(dfs, function(d)
+  data.frame(age = ag$age, p = predict(glm(trump ~ ns(age, df = d), data = train, family = binomial), ag, type = "response"),
+             model = factor(sprintf("df = %d", d), levels = sprintf("df = %d", dfs)))))
+p2 <- ggplot(dns, aes(age, p, colour = model)) +
+  geom_point(data = bins, aes(age, trump), inherit.aes = FALSE, colour = ink2, size = 1.5) +
+  geom_line(linewidth = 0.9) +
+  scale_colour_manual(values = setNames(c(ref, pal[["blue"]], pal[["orange"]]), sprintf("df = %d", dfs))) +
+  labs(x = "Age", y = "Share voting Trump")
+p1 + p2
+```
+
+::: sol
+The CV loss falls sharply once the curve is allowed to bend, reaches its minimum at df = `r df_best`, and then creeps up as extra flexibility starts fitting noise: the usual U, shallow on the right. The fall from df = 1 to df = `r df_best` (`r f4(cv_loss[1])` to `r f4(min(cv_loss))`) is far larger than anything that happens afterwards (`r f4(cv_loss[10])` at df = 10). So the applied lesson is asymmetric: here a straight line is clearly too stiff, and a few degrees of freedom too many cost little. The substantive reading: support rises steeply from the youngest voters to about 50, stays level or dips slightly through the sixties, and is higher again among the oldest respondents, where the data are thin. The df = 10 curve wiggles around the df = `r df_best` curve without telling a different story. The linear logit misses the plateau: it understates the gap between a 20-year-old and a 50-year-old, and draws a steady rise between 50 and 70 where the data show none.
+:::
+
+**4.2** The other route: a rich basis and a penalty on curvature. In `gam()`, `sp` fixes $\lambda$ and `method = "REML"` estimates it. Which of the three curves will wiggle? What will the effective degrees of freedom be under the huge penalty?
+
+```{r}
+#| label: smooth
+s_small <- gam(trump ~ s(age, k = 30), data = train, family = binomial, sp = 1e-6)
+s_large <- gam(trump ~ s(age, k = 30), data = train, family = binomial, sp = 1e6)
+s_reml  <- gam(trump ~ s(age, k = 30), data = train, family = binomial, method = "REML")
+edf1 <- function(fit) sum(fit$edf) - 1                 # edf of the curve, without the intercept
+round(c(small_penalty = edf1(s_small), large_penalty = edf1(s_large), REML = edf1(s_reml)), 1)
+```
+
+```{r}
+#| label: fig-smooth
+#| echo: false
+#| fig-height: 3
+#| fig-cap: "A smoothing spline in age under a tiny penalty, a huge penalty, and the penalty chosen by REML."
+labs3 <- sprintf(c("Small penalty (edf %.0f)", "Large penalty (edf %.0f)", "REML (edf %.1f)"),
+                 c(edf1(s_small), edf1(s_large), edf1(s_reml)))
+dss <- rbind(data.frame(age = ag$age, p = predict(s_small, ag, type = "response"), model = labs3[1]),
+             data.frame(age = ag$age, p = predict(s_large, ag, type = "response"), model = labs3[2]),
+             data.frame(age = ag$age, p = predict(s_reml,  ag, type = "response"), model = labs3[3]))
+dss$model <- factor(dss$model, levels = labs3)
+ggplot(dss, aes(age, p, colour = model, linewidth = model)) +
+  geom_point(data = bins, aes(age, trump), inherit.aes = FALSE, colour = ink2, size = 1.5) +
+  geom_line() +
+  scale_colour_manual(values = setNames(c(pal[["orange"]], ref, pal[["blue"]]), labs3)) +
+  scale_linewidth_manual(values = setNames(c(0.5, 0.8, 1.1), labs3)) +
+  labs(x = "Age", y = "Share voting Trump")
+```
+
+::: sol
+The small penalty wiggles: with $\lambda$ near zero the log loss dominates and all `r round(edf1(s_small))` of the available basis functions are used. The huge penalty forbids curvature altogether, so the curve is a straight line and the edf is `r f1(edf1(s_large))`: the plain logit again. REML lands at an edf of `r f1(edf1(s_reml))`, close to the df = `r df_best` that CV chose for `ns()` by a completely different route. "How many knots" and "how big a penalty" are two dials on the same thing. The penalty version is the one that scales: with several smooth features a grid search over every combination of df is impractical, and that is what a GAM addresses.
+:::
+
+# Part 5: a GAM, and what it cannot see
+
+::: {.algo title="The model (Lecture 17)"}
+A generalized additive model gives each continuous feature its own smooth function and adds them up on the logit scale; the other features enter as in the logit:
+$$\operatorname{logit}\pi(x_i) = \beta_0 + \beta_1\,\texttt{female}_i + \beta_2\,\texttt{collegeed}_i + \gamma_{\texttt{race}_i} + f_1(\texttt{age}_i) + f_2(\texttt{famincr}_i) + f_3(\texttt{lrelig}_i).$$
+Each $f_j$ is a spline with its own basis, $f_j(x) = \sum_k \theta_{jk}\, b_{jk}(x)$, centred so that $\sum_i f_j(x_{ij}) = 0$. All the coefficients are estimated together by one penalized logit, with a penalty per curve:
+$$\min_{\beta,\theta}\Big\{ -\ell(\beta, \theta) + \sum_{j=1}^{3} \lambda_j \int f_j''(x)^2\, dx \Big\}.$$
+REML (restricted maximum likelihood) treats each curve's coefficients like random effects and estimates all the $\lambda_j$ at once, instead of a grid search over every combination. The model is *additive*: each feature's contribution does not depend on the others, unless an interaction is written into the formula.
+:::
+
+```{r}
+#| label: gam
+fit_gam <- gam(trump ~ female + collegeed + race + s(age) + s(famincr, k = 8) + s(lrelig),
+               data = train, family = binomial, method = "REML")
+p_gam <- predict(fit_gam, test, type = "response")
+round(summary(fit_gam)$s.table[, c("edf", "Chi.sq", "p-value")], 3)
+```
+
+```{r}
+#| label: fig-gam
+#| echo: false
+#| fig-height: 3
+#| fig-cap: "The three smooths with 95% bands, on the log-odds scale, holding the other features fixed. Dashed: the straight line the logit fits, centred the same way."
+sm_names <- c(age = "Age", famincr = "Family income", lrelig = "Religiosity")
+edf <- summary(fit_gam)$s.table[, "edf"]; names(edf) <- names(sm_names)
+tm  <- predict(fit_gam, train, type = "terms", se.fit = TRUE)
+dsm <- do.call(rbind, lapply(names(sm_names), function(v) {
+  col <- paste0("s(", v, ")")
+  data.frame(x = train[[v]], fit = tm$fit[, col], se = tm$se.fit[, col],
+             lin = coef(fit_logit)[[v]] * (train[[v]] - mean(train[[v]])),
+             panel = sprintf("%s (edf %.1f)", sm_names[[v]], edf[[v]]))
+}))
+dsm$panel <- factor(dsm$panel, levels = unique(dsm$panel))
+ggplot(dsm, aes(x, fit)) +
+  geom_hline(yintercept = 0, colour = ref, linewidth = 0.3) +
+  geom_ribbon(aes(ymin = fit - 1.96 * se, ymax = fit + 1.96 * se), fill = pal[["blue"]], alpha = 0.18) +
+  geom_line(aes(y = lin), colour = ink2, linetype = "dashed", linewidth = 0.5) +
+  geom_line(colour = pal[["blue"]], linewidth = 0.9) +
+  facet_wrap(~ panel, scales = "free_x", ncol = 3) +
+  theme(strip.text = element_text(size = 10)) +
+  labs(x = NULL, y = "Effect on the log odds")
+```
+
+```{r}
+#| label: age-numbers
+#| echo: false
+ref_person <- function(a) data.frame(age = a, female = 0, collegeed = 0,
+                                     race = factor("White", levels = levels(cces$race)), famincr = 6, lrelig = 0)
+ag_g <- predict(fit_gam,   ref_person(c(20, 50, 70)), type = "response")
+ag_l <- predict(fit_logit, ref_person(c(20, 50, 70)), type = "response")
+```
+
+**5.1** Read the edf column and the figure together. For which features did the data ask for a curve? Is the age curve the one from Part 4, now that the other five features are held fixed? What does the logit's single coefficient on `age` (`r f3(coef(fit_logit)[["age"]])` per year) get wrong?
+
+::: sol
+An edf of 1 would be a straight line, and none of the three is: age `r f1(edf[["age"]])`, income `r f1(edf[["famincr"]])`, religiosity `r f1(edf[["lrelig"]])`. Income and religiosity bend only gently and stay close to the logit's dashed line. Age does not, and it is the Part 4 shape again, so that shape was not produced by older respondents being more religious or more often White. Support for Trump rises steeply from 18 to about 50 and then stops rising; the band widens after 80, where there are few respondents, so nothing should be read into the far right end. The logit has to draw one slope through all of it, so it understates how fast support rises among the young and draws a rise between 50 and 70 that the GAM does not find. For a White man without a degree at average income and religiosity, the GAM's $\hat\pi$ is `r f2(ag_g[1])` at 20, `r f2(ag_g[2])` at 50 and `r f2(ag_g[3])` at 70; the logit's is `r f2(ag_l[1])`, `r f2(ag_l[2])` and `r f2(ag_l[3])`. Nobody specified this shape. REML chose each $\lambda_j$, and it could have returned straight lines.
+:::
+
+**5.2** Now a feature the GAM treats exactly as the logit does. The "diploma divide" is the claim that a college degree moved voters away from Trump. Both the logit and the GAM give `collegeed` one coefficient (`r f2(coef(fit_logit)[["collegeed"]])` in the logit). *Before the table:* does one coefficient mean the same change in $\hat\pi$ for White, Black and Hispanic respondents? For each model, we take every test respondent of a given race, set `collegeed` to 0 and then to 1, and average the difference in $\hat\pi$. The first column is the raw gap in the test data.
+
+```{r}
+#| label: college
+college_effect <- function(pred, r) {
+  lo <- hi <- test[test$race == r, ]; lo$collegeed <- 0; hi$collegeed <- 1
+  mean(pred(hi) - pred(lo))
+}
+models <- list(Logit    = function(d) predict(fit_logit, d, type = "response"),
+               GAM      = function(d) predict(fit_gam, d, type = "response"),
+               Forest   = function(d) predict(fit_rf, d)$predictions[, 2],
+               Boosting = function(d) predict(fit_boost, d, n.trees = B_boost, type = "response"))
+races <- c("White", "Black", "Hispanic")
+raw   <- sapply(races, function(r) mean(test$trump[test$race == r & test$collegeed == 1]) -
+                                    mean(test$trump[test$race == r & test$collegeed == 0]))
+eff   <- sapply(models, function(m) sapply(races, function(r) college_effect(m, r)))
+round(100 * cbind(`Raw gap` = raw, eff), 1)          # percentage points
+```
+
+::: sol
+One coefficient means the same shift in the *log odds* for everyone, not the same shift in $\hat\pi$. That is why the logit and GAM give Black respondents a smaller effect (`r f1(100 * eff["Black", "Logit"])` points): their $\hat\pi$ is near zero, where the logistic curve is flat. Even that overstates the raw gap of `r f1(100 * raw[["Black"]])`. The Hispanic row is the bigger problem. The logit and the GAM say a degree lowers a Hispanic respondent's probability of a Trump vote by `r f1(-100 * eff["Hispanic", "Logit"])` and `r f1(-100 * eff["Hispanic", "GAM"])` points, nearly as much as for White respondents. The raw gap among Hispanic respondents is `r f1(100 * raw[["Hispanic"]])` points, and the forest and boosting put the effect at `r f1(100 * eff["Hispanic", "Forest"])` and `r f1(100 * eff["Hispanic", "Boosting"])`. In these data the diploma divide is a White phenomenon (`r f1(100 * raw[["White"]])` points raw). The additive models cannot say so: White respondents are `r pc(mean(train$race == "White"), 0)` of the training data, so the one `collegeed` coefficient is their coefficient, applied to everyone. The tree-based models found the difference because every split is made inside a group defined by earlier splits. This is the closing point of Lecture 17: the GAM has no interactions unless we write them into the model. The raw gap is not adjusted for age, income or religiosity, so it is a check on direction, not the truth.
+:::
+
+The repair is to say so in the model. A GAM is still a model we write down:
+
+```{r}
+#| label: gam-x
+fit_gam_x <- gam(trump ~ female + collegeed * race + s(age) + s(famincr, k = 8) + s(lrelig),
+                 data = train, family = binomial, method = "REML")
+p_gam_x <- predict(fit_gam_x, test, type = "response")
+
+round(summary(fit_gam_x)$p.table[grep("collegeed", rownames(summary(fit_gam_x)$p.table)), 1:2], 2)
+eff_x <- sapply(races, function(r) college_effect(function(d) predict(fit_gam_x, d, type = "response"), r))
+round(100 * eff_x, 1)
+```
+
+```{r}
+#| label: gam-x-numbers
+#| echo: false
+cf <- coef(fit_gam_x); V <- vcov(fit_gam_x); nm <- c("collegeed", "collegeed:raceHispanic")
+net_h <- sum(cf[nm]); se_h <- sqrt(sum(V[nm, nm]))
+```
+
+::: {.sol label="Note"}
+With `collegeed * race` the GAM no longer forces one effect on everyone. The `collegeed:raceHispanic` coefficient (`r f2(cf[[nm[2]]])`, s.e. `r f2(summary(fit_gam_x)$p.table[nm[2], 2])`) cancels the main effect (`r f2(cf[[nm[1]]])`): the net log-odds effect of a degree for Hispanic respondents is `r sprintf("%+.2f", net_h)` with a standard error of `r f2(se_h)`, estimated from only `r sum(train$race == "Hispanic")` Hispanic respondents in the training data. In points that is `r sprintf("%+.1f", 100 * eff_x[["Hispanic"]])`, against `r f1(100 * eff["Hispanic", "GAM"])` before. The GAM now agrees with the forest, boosting and the raw data that there is no diploma divide to speak of among Hispanic respondents. The White effect moves from `r f1(100 * eff["White", "GAM"])` to `r f1(100 * eff_x[["White"]])`, closer to the raw `r f1(100 * raw[["White"]])`, because it is no longer averaged with groups where the effect is absent. The division of labour: trees are good at *finding* interactions nobody thought to specify, and an additive model is good at *showing* a relationship once you know to ask. The ranking barely changes: the test AUC moves from `r f4(auc(p_gam))` to `r f4(auc(p_gam_x))`. Hispanic respondents are `r pc(mean(test$race == "Hispanic"), 0)` of the sample, so an interaction that matters a great deal for interpretation barely registers in a sample-wide metric.
+:::
+
+# Part 6: which model, and does it matter?
+
+```{r}
+#| label: scoreboard
+fit_ns <- glm(trump ~ female + collegeed + race + ns(age, df = df_best) + ns(famincr, df = 3) + ns(lrelig, df = 3),
+              data = train, family = binomial)
+p_ns   <- predict(fit_ns, test, type = "response")
+
+preds <- list(Logit = p_logit, Bagging = p_bag, `Random forest` = p_rf, Boosting = p_boost,
+              `Spline logit` = p_ns, GAM = p_gam, `GAM + college x race` = p_gam_x)
+
+# bootstrap the test respondents; refit: about 15 seconds
+set.seed(6039)
+boot <- cached("boot_auc", replicate(300, {
+  i <- sample(nrow(test), replace = TRUE)
+  sapply(preds, function(p) auc(p[i], test$trump[i]))
+}))
+ci  <- apply(boot, 1, quantile, c(0.025, 0.975))
+dif <- apply(boot - boot[rep("Logit", nrow(boot)), ], 1, quantile,
+             c(0.025, 0.975))
+
+score <- data.frame(Model = names(preds),
+                    `Test AUC` = f3(sapply(preds, auc)),
+                    `95% interval` = sprintf("[%.3f, %.3f]", ci[1, ], ci[2, ]),
+                    `Minus logit` = sprintf("[%+.3f, %+.3f]", dif[1, ], dif[2, ]),
+                    Accuracy = f3(sapply(preds, acc)),
+                    `Top 1,000` = f2(sapply(preds, top_k)), check.names = FALSE)
+score$`Minus logit`[1] <- ""
+knitr::kable(score, row.names = FALSE, align = "lrrrrr")
+```
+
+"Minus logit" is the 95% interval for the difference in AUC from the logit. Accuracy is at a threshold of 0.5. "Top 1,000" is the share of Trump voters among the 1,000 test respondents with the highest $\hat\pi$.
+
+**6.1** In lecture the forest and boosting beat the logit clearly (0.858 against 0.825). What is the ordering here, and how large are the gaps? With `r fb(nrow(test))` test respondents the intervals are narrow: which differences from the logit are distinguishable from zero? Which would change what the campaign does?
+
+::: sol
+By point estimate: `r paste(names(sort(sapply(preds, auc), decreasing = TRUE)), collapse = " > ")`. Leaving bagging aside, everything sits between `r f3(min(sapply(preds, auc)[names(preds) != "Bagging"]))` and `r f3(max(sapply(preds, auc)))`. Because the test set is large, several of those gaps are statistically clear: boosting beats the logit by `r f3(auc(p_boost) - auc(p_logit))`, with an interval of `r sprintf("%+.3f to %+.3f", dif[1, "Boosting"], dif[2, "Boosting"])` that excludes zero. But in the last two columns accuracy moves from `r f3(acc(p_logit))` to `r f3(acc(p_boost))`, and the top 1,000 doors hold `r round(1000 * top_k(p_logit))` Trump voters under the logit and `r round(1000 * top_k(p_boost))` under boosting. Distinguishable and important are different things, and a big test set makes small differences distinguishable. The summary: every approach gives an AUC of about 0.77 and about 70% correct. That is Kim and Zilinsky's finding, reproduced in a different survey: the ceiling comes from the features, not from the model. If the campaign only wants a ranked list, the logit or the GAM will do. The flexible models earned their place in Part 5, by showing something about voters that the logit had hidden.
+:::
+
+**6.2** We trained on 5,000 respondents. A typical poll has 1,000; a campaign's modelling file may have 20,000 or more. The figure refits each model on training sets of different sizes and scores it on the same 10,000 held-out respondents (five random training sets per size; the code is in `learning_curve.R`, which takes about 3 to 4 minutes, and the figure reads its saved results). Which model would you use with a poll of 500? Which with 20,000 respondents? Why does the answer change?
+
+```{r}
+#| label: fig-learning
+#| echo: false
+#| fig-height: 3.6
+#| fig-cap: "Test AUC against training-set size, averaged over five random training sets of each size."
+lc  <- readRDS("data/learning_curve.rds")
+lcm <- aggregate(lc[, -(1:2)], list(n = lc$n), mean)
+lcl <- reshape(lcm, direction = "long", varying = names(lcm)[-1], v.names = "auc",
+               timevar = "model", times = names(lcm)[-1], idvar = "n")
+lcl$model <- factor(lcl$model, levels = c("Logit", "Spline logit", "GAM", "Random forest", "Boosting"))
+ggplot(lcl, aes(n, auc, colour = model)) +
+  geom_line(linewidth = 0.9) + geom_point(size = 1.5) +
+  scale_x_log10(breaks = c(250, 500, 1000, 2500, 5000, 10000, 20000), labels = function(x) format(x, big.mark = ",")) +
+  scale_colour_manual(values = c(Logit = ink, `Spline logit` = pal[["violet"]], GAM = pal[["aqua"]],
+                                 `Random forest` = pal[["orange"]], Boosting = pal[["blue"]])) +
+  labs(x = "Training respondents (log scale)", y = "Test AUC")
+```
+
+```{r}
+#| label: learning-numbers
+#| echo: false
+lcv <- function(n, m) lcm[lcm$n == n, m]
+```
+
+::: sol
+With 500 respondents: the logit or the GAM, at `r f3(lcv(500, "Logit"))` and `r f3(lcv(500, "GAM"))`, while the forest is at `r f3(lcv(500, "Random forest"))` and boosting at `r f3(lcv(500, "Boosting"))`. With 20,000: boosting is on top at `r f3(lcv(20000, "Boosting"))`, the forest has passed the logit (`r f3(lcv(20000, "Random forest"))`), and the logit has barely moved since 500 (`r f3(lcv(20000, "Logit"))`). The reason is the bias-variance trade-off. The logit has ten coefficients: low variance, so it is close to its best with a few hundred respondents, and some bias, so more data cannot improve it. The forest and boosting assume no functional form: little bias, high variance, and variance is what more data pays down. The curves cross between about 2,500 and 10,000 respondents. Two further points. The lecture's "forests and boosting win" table is a statement about one sample size and one data-generating process, not about the methods. And the GAM tracks the logit at small $n$ and sits slightly above it from 2,500 on: it buys a little flexibility at almost no cost in variance, because the penalty removes curvature the data cannot support. With survey-sized data, that is usually the trade to take.
+:::
+
+**6.3** Everything so far used the same six background features. The survey also asked about politics. We add four items: seven-point party identification (`pid7`, 1 strong Democrat to 7 strong Republican), five-point ideology (`ideo`, 1 very liberal to 5 very conservative), and two racial-attitude scales built from four agree/disagree items (`lcograc`: racism is rare, whites have advantages; `lemprac`: fear of other races, anger that racism exists). *Before the table:* every model so far gave an AUC of about 0.77. Write down your guess for a plain logit with these four items added, and for a random forest on the same ten features. Then: which mattered more, the choice of model or the choice of features? Why can the campaign not simply use the bottom rows?
+
+```{r}
+#| label: attitudes
+f_att <- update(f, . ~ . + pid7 + ideo + lcograc + lemprac)
+
+fit_logit_att <- glm(f_att, data = train, family = binomial)
+fit_rf_att    <- ranger(update(f_att, factor(trump) ~ .), data = train, probability = TRUE,
+                        num.trees = 500, min.node.size = 10, seed = 6039)
+fit_pid       <- glm(trump ~ pid7, data = train, family = binomial)
+
+p_logit_att <- predict(fit_logit_att, test, type = "response")
+p_rf_att    <- predict(fit_rf_att, test)$predictions[, 2]
+p_pid       <- predict(fit_pid, test, type = "response")
+```
+
+```{r}
+#| label: attitudes-table
+#| echo: false
+feat <- list(`Six background features, logit` = p_logit, `Six background features, boosting` = p_boost,
+             `Party identification alone, logit` = p_pid,
+             `Background + four attitude items, logit` = p_logit_att,
+             `Background + four attitude items, forest` = p_rf_att)
+knitr::kable(data.frame(Model = names(feat), `Test AUC` = f3(sapply(feat, auc)),
+                        Accuracy = f3(sapply(feat, acc)),
+                        `Top 1,000` = f2(sapply(feat, top_k)), check.names = FALSE),
+             row.names = FALSE, align = "lrrr")
+```
+
+::: sol
+The features, by an order of magnitude. Going from the logit to the best learner on the same six features moved the AUC by `r f3(auc(p_boost) - auc(p_logit))`. Adding four survey items to the plain logit moves it by `r f3(auc(p_logit_att) - auc(p_logit))`, to `r f3(auc(p_logit_att))`, with `r pc(acc(p_logit_att), 0)` classified correctly and a top 1,000 that is `r pc(top_k(p_logit_att), 0)` Trump voters. A single seven-point question does better alone (`r f3(auc(p_pid))`) than all six background features under any learner. And the forest adds almost nothing to the logit on ten features (`r f3(auc(p_rf_att))` against `r f3(auc(p_logit_att))`): once the right variables are in, a plain logit is enough.
+
+Why the campaign cannot use the bottom rows: the voter file has age, sex, sometimes race and a modelled income for everyone, and party identification and racial attitudes for nobody. Those have to be asked. That is why campaigns survey a few thousand people, fit a model of the survey answers on voter-file features, and score the file with it, which puts them back in the top rows of this table. The lecture's version of the same discipline is the phrase "available prior to election day": a feature only helps if you will have it when you need to predict.
+
+Nor is "party identification predicts the vote" an explanation of the vote. Party identification and the vote were reported by the same person in the same survey and are close to two measures of one thing. A model can predict very well from a feature that explains very little, and it can predict modestly from features that matter a lot for some people (5.2). Prediction tells us what is *in* $x$, not why. Compare Kim and Zilinsky: they get about 64% from five demographics in the ANES, we get `r pc(acc(p_logit), 0)` here with religiosity added, and both are a long way from the `r pc(acc(p_logit_att), 0)` that a few attitude items give. Social groups divide American voters less sharply than the commentary suggests; partisanship divides them almost completely.
+:::
+
+# Take-home
+
+1. Tune the boosted model properly: a grid over `shrinkage`, `interaction.depth` and `n.trees` with 5-fold CV. How much test AUC do you gain over the settings used here?
+2. Refit the boosted model with `xgboost`. Do you land in the same place as `gbm`?
+3. Part 5 found one interaction by comparing the GAM with the forest and boosting. Look for another, for example religiosity by race: add `s(lrelig, by = race)` to the GAM and check whether REML keeps separate curves.
+4. Repeat 4.1 for `lrelig` and `famincr`. Does CV choose more than one degree of freedom for either?
+
+# Appendix: CatBoost
+
+CatBoost (Prokhorenkova et al. 2018) is a gradient boosting library, like `gbm` and `xgboost`: it fits the same additive model of small trees as in Part 3. It changes three things about how that model is fitted. The first matters most for survey data, which are full of categorical features with many levels: state, county, occupation, denomination, interviewer.
+
+::: {.algo title="The model"}
+**The same target as Part 3.** CatBoost builds $F_B(x) = F_0 + \lambda \sum_{b=1}^{B} h_b(x)$ on the log-odds scale and minimizes the log loss, $-\sum_i \big[y_i \log \sigma(F(x_i)) + (1 - y_i)\log\big(1 - \sigma(F(x_i))\big)\big]$. Each round fits a tree $h_b$ to the residuals $r_i = y_i - \sigma\big(F_{b-1}(x_i)\big)$, with an L2 penalty on its leaf values (`l2_leaf_reg`, default 3).
+
+**1. Ordered target statistics for categorical features.** A categorical feature $x^k$ with many levels is replaced by one number per respondent, a *target statistic*: the share of $y = 1$ among respondents with the same category, shrunk toward a prior $p$ with weight $a > 0$. The obvious version, the *greedy* statistic, uses every training respondent with that category, including respondent $i$:
+$$\hat x^k_i = \frac{\sum_{j} 1\{x^k_j = x^k_i\}\, y_j + a\,p}{\sum_{j} 1\{x^k_j = x^k_i\} + a}.$$
+This leaks the outcome. For a category with a single training respondent, $\hat x^k_i = (y_i + a p)/(1 + a)$ is a function of $y_i$ alone, so in training the feature predicts the outcome perfectly; on new data it cannot. The distribution of $\hat x^k$ given $y$ differs between training and test (a *conditional shift*). CatBoost instead draws a random permutation $\sigma$ of the training rows and uses only the rows that come *before* $i$:
+$$\hat x^k_i = \frac{\sum_{j:\,\sigma(j) < \sigma(i)} 1\{x^k_j = x^k_i\}\, y_j + a\,p}{\sum_{j:\,\sigma(j) < \sigma(i)} 1\{x^k_j = x^k_i\} + a}.$$
+Respondent $i$'s own outcome never enters its own feature, every row is encoded from the same kind of information as a new respondent will be, and rare categories are shrunk toward $p$. At prediction time the statistic uses all training rows. CatBoost uses several permutations and several priors, and as it grows a tree it also forms target statistics for *combinations* of categorical features (state $\times$ race, for example).
+
+**2. Ordered boosting.** The same problem affects the residuals. In ordinary boosting $r_i$ is computed from $F_{b-1}$, a model already fitted to $(x_i, y_i)$, so training residuals are systematically smaller than residuals on new data (a *prediction shift*). Ordered boosting computes $r_i$ from a supporting model fitted only to the rows before $i$ in the permutation, $r_i = y_i - \sigma\big(M_{\sigma(i) - 1}(x_i)\big)$. It is set by `boosting_type = "Ordered"`; on large data the default is the ordinary scheme, while the ordered target statistics are always used.
+
+**3. Oblivious (symmetric) trees.** Every node at the same depth uses the same split. A tree of depth $d$ is a sequence of $d$ conditions $(x_{k_1} > t_1), \dots, (x_{k_d} > t_d)$; the $d$ answers form a binary index into $2^d$ leaves:
+$$h(x) = \sum_{\ell = 1}^{2^d} c_\ell\, 1\{x \in R_\ell\}.$$
+This is a strong constraint on each tree, which regularizes the model, and prediction is a table lookup.
+
+**Defaults.** 1,000 trees of depth 6, a learning rate chosen automatically from the size of the data, `l2_leaf_reg = 3`. Factor columns are treated as categorical and encoded by target statistics; a feature with at most `one_hot_max_size` levels is expanded into dummies instead.
+:::
+
+**Installing CatBoost.** The R package is not on CRAN. Download the build for your system from the [CatBoost releases page](https://github.com/catboost/catboost/releases) on GitHub and install it with `R CMD INSTALL <file>`. For version 1.2.10 the files are:
+
+- macOS: `catboost-R-darwin-universal2-1.2.10.tgz`
+- Linux: `catboost-R-linux-x86_64-1.2.10.tgz`
+- Windows: `catboost-R-windows-x86_64-1.2.10.tgz`
+
+ Each CatBoost fit takes about 4 seconds (7 with ordered boosting). Their results are saved in `data/cache/` like the other slow steps, so the appendix renders from the saved estimates even without `catboost` installed; refitting requires it.
+
+```{r}
+#| label: cb-setup
+#| include: false
+has_cb <- requireNamespace("catboost", quietly = TRUE)
+cb_ok  <- has_cb || (!refit && all(file.exists(file.path("data", "cache",
+            paste0(c("cb_six", "cb_state", "cb_onehot", "cb_ordered", "cb_cell"), ".rds")))))
+A <- list(six = NA, state = NA, onehot = NA, ordered = NA, cell = NA, imp_state = NA, rank_state = NA)
+```
+
+**The exercise.** Where someone lives should tell us something about their vote, and the survey records each respondent's `state`: 51 categories. With 5,000 training respondents, the median state has `r median(table(train$state))` of them and the smallest has `r min(table(train$state))`.
+
+**A.1** We add `state` to the logit (as 50 dummies) and to the boosted model from Part 3 (as a factor). *Before the table:* will the test AUC go up?
+
+```{r}
+#| label: state-naive
+#| results: hide
+train$state <- factor(train$state)
+test$state  <- factor(test$state, levels = levels(train$state))
+f_state <- update(f, . ~ . + state)
+
+p_logit_state <- predict(glm(f_state, data = train, family = binomial), test, type = "response")
+# refit: about 10 seconds
+b_state       <- cached("gbm_state", boost(lambda = 0.02, d = 3, form = f_state))
+p_boost_state <- predict(b_state, test, n.trees = B_cv(b_state), type = "response")
+```
+
+```{r}
+#| label: state-naive-table
+#| echo: false
+knitr::kable(data.frame(Model = c("Logit", "Boosting (gbm)"),
+                        `Six features` = f4(c(auc(p_logit), auc(p_boost))),
+                        `Six features + state` = f4(c(auc(p_logit_state), auc(p_boost_state))), check.names = FALSE),
+             align = "lrr", caption = "Test AUC without and with state.")
+```
+
+::: sol
+It goes down in both: the logit from `r f4(auc(p_logit))` to `r f4(auc(p_logit_state))`, `gbm` from `r f4(auc(p_boost))` to `r f4(auc(p_boost_state))`. State does carry information, but not enough to pay for how we asked the models to use it. The logit has to estimate 50 extra coefficients, many from a few dozen respondents. For `gbm` a 51-level factor offers an enormous number of ways to divide the states into two groups at every split, so it is easy to find a division that fits the training respondents by chance. In both cases the feature adds more variance than signal. This is the usual experience with high-cardinality categories, and the reason they are often dropped or collapsed to regions by hand.
+:::
+
+**A.2** Now CatBoost, three ways: the six features; the six features plus `state`, declared categorical simply by being a factor; and the same with the target statistics switched off, so that `state` is expanded into dummies (`one_hot_max_size = 255`). What does the comparison between the second and third rows tell you?
+
+```{r}
+#| label: catboost
+#| eval: !expr cb_ok
+if (has_cb) library(catboost)
+
+cb_fit <- function(vars, ...) {
+  pool <- catboost.load_pool(train[, vars], label = train$trump)   # factors are categorical
+  fit  <- catboost.train(pool, params = list(
+    loss_function = "Logloss", random_seed = 6039, thread_count = 1,
+    logging_level = "Silent", allow_writing_files = FALSE, ...))
+  test_pool <- catboost.load_pool(test[, vars])
+  imp <- catboost.get_feature_importance(fit, pool)[, 1]
+  list(p_train = catboost.predict(fit, pool, prediction_type = "Probability"),
+       p = catboost.predict(fit, test_pool, prediction_type = "Probability"),
+       importance = setNames(imp, vars))
+}
+six <- all.vars(f)[-1]
+
+# six features; + state by ordered target statistics; + state as dummies
+# refit: about 4 seconds each
+cb_six    <- cached("cb_six",    cb_fit(six))
+cb_state  <- cached("cb_state",  cb_fit(c(six, "state")))
+cb_onehot <- cached("cb_onehot", cb_fit(c(six, "state"), one_hot_max_size = 255))
+
+imp_cb <- cb_state$importance
+```
+
+```{r}
+#| label: catboost-table
+#| echo: false
+#| eval: !expr cb_ok
+cb_ordered <- cached("cb_ordered", cb_fit(c(six, "state"), boosting_type = "Ordered"))
+A$six <- auc(cb_six$p); A$state <- auc(cb_state$p); A$onehot <- auc(cb_onehot$p); A$ordered <- auc(cb_ordered$p)
+A$imp_state <- imp_cb[["state"]]; A$rank_state <- rank(-imp_cb)[["state"]]
+knitr::kable(data.frame(Model = c("CatBoost, six features", "CatBoost, six features + state (target statistics)",
+                                  "CatBoost, six features + state (dummies)"),
+                        `Test AUC` = f4(c(A$six, A$state, A$onehot)), check.names = FALSE), align = "lr")
+round(sort(imp_cb, decreasing = TRUE), 1)             # CatBoost's feature importance, percent
+```
+
+::: sol
+With `state` encoded by ordered target statistics the test AUC rises, from `r f4(A$six)` to `r f4(A$state)`. With the same feature in the same algorithm but expanded into dummies it falls to `r f4(A$onehot)`, the pattern we saw for the logit and `gbm`. So the gain does not come from CatBoost being a better booster in general. It comes from how the category enters: as one number per state, the Trump share among other respondents from that state, shrunk toward the prior when the state has few respondents. This is partial pooling, the idea behind the hierarchical models of Lecture 14: a state with four respondents is not allowed its own extreme estimate, it borrows from everyone else. The hierarchical model does this with a prior on the state effects; CatBoost does it inside the encoding. In the importance table `state` is ranked `r A$rank_state` of 7, with `r f1(A$imp_state)`% of the total. With `boosting_type = "Ordered"` the test AUC is `r f4(A$ordered)`; the ordered target statistics are used either way.
+:::
+
+**A.3** Why not do the target encoding ourselves and hand the result to the logit or `gbm`? We try it on a finer category, the **cell** formed by state $\times$ race $\times$ college degree. The training data contain `r length(unique(paste(train$state, train$race, train$collegeed)))` cells, `r pc(mean(table(paste(train$state, train$race, train$collegeed)) < 5), 0)` of them with fewer than five respondents. Three encodings of the cell: *greedy* (each training respondent gets the Trump share of its cell, computed on all training respondents, itself included); *out-of-fold* (the share is computed on the other four of five folds, so a respondent's own outcome never enters); and CatBoost's ordered statistic. Test respondents always get the share in the full training data, and the overall share if their cell is unseen. *Before the table:* which encoding will look best in training, and which on the test set?
+
+```{r}
+#| label: target-encoding
+#| results: hide
+cell_of <- function(d) paste(d$state, d$race, d$collegeed, sep = ":")
+train$cell <- cell_of(train); test$cell <- cell_of(test)
+ybar <- mean(train$trump)
+
+share_by_cell <- function(rows) tapply(train$trump[rows], train$cell[rows], mean)
+lookup <- function(tab, cells) { z <- tab[cells]; ifelse(is.na(z), ybar, z) }
+
+greedy <- lookup(share_by_cell(seq_len(nrow(train))), train$cell)       # own outcome included
+set.seed(6039)
+fold <- sample(rep(1:5, length.out = nrow(train)))
+oof  <- numeric(nrow(train))
+for (k in 1:5) oof[fold == k] <- lookup(share_by_cell(which(fold != k)), train$cell[fold == k])
+test_enc <- lookup(share_by_cell(seq_len(nrow(train))), test$cell)      # test: full training shares
+
+fit_enc <- function(enc_train) {
+  tr <- transform(train, enc = enc_train); te <- transform(test, enc = test_enc)
+  lg <- glm(update(f, . ~ . + enc), data = tr, family = binomial)
+  set.seed(6039)
+  gb <- gbm(update(f, . ~ . + enc), data = tr, distribution = "bernoulli", n.trees = 1500, shrinkage = 0.02,
+            interaction.depth = 3, n.minobsinnode = 10, cv.folds = 5, n.cores = 1, verbose = FALSE)
+  B <- gbm.perf(gb, method = "cv", plot.it = FALSE)
+  c(logit_coef = coef(lg)[["enc"]],
+    logit_train = auc(fitted(lg), train$trump), logit_test = auc(predict(lg, te), test$trump),
+    gbm_train = auc(predict(gb, tr, n.trees = B), train$trump), gbm_test = auc(predict(gb, te, n.trees = B), test$trump))
+}
+# refit: about 20 seconds
+enc_res <- cached("target_encoding",
+                  rbind(Greedy = fit_enc(greedy), `Out-of-fold` = fit_enc(oof)))
+```
+
+```{r}
+#| label: target-encoding-cb
+#| echo: false
+#| eval: !expr cb_ok
+train$cellf <- factor(train$cell); test$cellf <- factor(test$cell)     # CatBoost matches categories by value
+cb_cell <- cached("cb_cell", cb_fit(c(six, "cellf")))
+A$cell <- auc(cb_cell$p); A$cell_train <- auc(cb_cell$p_train, train$trump)
+```
+
+```{r}
+#| label: target-encoding-table
+#| echo: false
+te_tab <- data.frame(Encoding = c("Greedy (own outcome included)", "Out-of-fold (5 folds)", "CatBoost ordered statistic"),
+                     `Logit: coefficient on cell share` = c(f2(enc_res[, "logit_coef"]), ""),
+                     `Logit: train AUC` = c(f4(enc_res[, "logit_train"]), ""),
+                     `Logit: test AUC`  = c(f4(enc_res[, "logit_test"]), ""),
+                     `Booster: train AUC` = c(f4(enc_res[, "gbm_train"]), if (cb_ok) f4(A$cell_train) else "not run"),
+                     `Booster: test AUC`  = c(f4(enc_res[, "gbm_test"]), if (cb_ok) f4(A$cell) else "not run"),
+                     check.names = FALSE)
+knitr::kable(te_tab, row.names = FALSE, align = "lrrrrr",
+             caption = sprintf("Six features plus an encoding of the state x race x college cell. The booster is gbm in the first two rows and CatBoost in the third. Test AUC with the six features alone: logit %.3f, gbm %.3f.", auc(p_logit), auc(p_boost)))
+```
+
+::: sol
+The greedy encoding looks best in training and is the worst on the test set. In the logit its training AUC is `r f4(enc_res["Greedy", "logit_train"])` and its test AUC `r f4(enc_res["Greedy", "logit_test"])`, below the six features alone (`r f4(auc(p_logit))`); in `gbm` the test AUC falls to `r f4(enc_res["Greedy", "gbm_test"])`. The coefficient on the encoding gives the mechanism away: `r f2(enc_res["Greedy", "logit_coef"])` under the greedy encoding against `r f2(enc_res["Out-of-fold", "logit_coef"])` out of fold. Most cells have fewer than five respondents, so for many training respondents the "share of their cell" is mostly their own vote. The model learns to trust the feature far too much, and on test respondents, whose own vote is not in the share, that trust is misplaced. This is the conditional shift in the model box, and it is the same leakage as estimating a feature and the outcome on the same rows.
+
+The out-of-fold encoding removes the leak, because no respondent's own outcome enters its own feature: the coefficient drops to `r f2(enc_res["Out-of-fold", "logit_coef"])`, and the test AUC (`r f4(enc_res["Out-of-fold", "logit_test"])` logit, `r f4(enc_res["Out-of-fold", "gbm_test"])` `gbm`) is back to about the level of the six features alone (`r f4(auc(p_logit))` and `r f4(auc(p_boost))`). The cell adds little once it is encoded honestly. CatBoost reaches a similar test AUC (`r if (cb_ok) f4(A$cell) else "not run"`) with no preprocessing: its ordered statistic is the same idea as out-of-fold encoding, done one row at a time along a random permutation instead of five folds at a time, with shrinkage of small cells toward the prior. In both cases the training AUC of a booster stays well above its test AUC, because boosted trees fit their own training data closely; the number that decides is the test AUC.
+:::
+
+**A.4** CatBoost is often described as needing no tuning. Compare its default fit on the six features with the models from the section: logit `r f4(auc(p_logit))`, `gbm` with CV-chosen rounds `r f4(auc(p_boost))`, GAM `r f4(auc(p_gam))`. When is it worth reaching for?
+
+::: sol
+On six mostly numeric features the default CatBoost fit scores `r f4(A$six)`: about the same as the logit and slightly below the `gbm` whose number of rounds was chosen by CV. Good defaults are not the same as best settings, and on a problem this close to additive no booster has much to find. CatBoost earns its place when the data look like A.2 and A.3: important features that are categories with many levels, where the alternatives are to throw the feature away, collapse it by hand, let dummies add noise, or write an out-of-fold encoder and risk getting it wrong. A logit or a GAM remains the better choice with a few hundred or a few thousand respondents and a need to explain what was found. As in Part 6, the larger gains came from what was in $x$, and here from how one feature in $x$ was represented.
+:::
+
+# References
+
+- Ansolabehere, S. & Schaffner, B. F. (2017) *Cooperative Congressional Election Study, 2016: Common Content*. Harvard Dataverse.
+- James, G., Witten, D., Hastie, T. & Tibshirani, R. (2021) *An Introduction to Statistical Learning*, 2nd ed., 7.3–7.7 and 8.2.
+- Kim, S. S. & Zilinsky, J. (2024) "Division Does Not Imply Predictability: Demographics Continue to Reveal Little About Voting and Partisanship." *Political Behavior* 46(1): 67–87.
+- Miller, S. V. `stevedata`: Steve's Toy Data for Teaching About a Variety of Methodological, Social, and Political Topics. R package (the `TV16` data). github.com/svmiller/stevedata.
+- Montgomery, J. M. & Olivella, S. (2018) "Tree-Based Models for Political Science Data." *American Journal of Political Science* 62(3): 729–744.
+- Prokhorenkova, L., Gusev, G., Vorobev, A., Dorogush, A. V. & Gulin, A. (2018) "CatBoost: Unbiased Boosting with Categorical Features." *Advances in Neural Information Processing Systems* 31.
