@@ -120,6 +120,45 @@ ol.take li{margin:0 0 14px;padding-left:4px}
 .row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
 svg text{font-family:var(--sans)}
 .prereq{font-size:15.5px;color:var(--ink2);margin:16px 0 0;max-width:68ch}
+
+.h3plain{font-family:var(--sans);font-size:17px;font-weight:600;letter-spacing:0;margin:30px 0 6px}
+.nar{max-width:68ch;margin:0 0 14px;color:var(--ink)}
+.rows{padding:4px 16px}
+.rows .r{display:grid;grid-template-columns:170px 1fr 190px;gap:16px;padding:12px 0;border-top:1px solid var(--line);align-items:baseline}
+.rows .r.hd{border-top:0;padding:8px 0 6px;font-size:13px;color:var(--muted);font-weight:600}
+.rows .r>span:nth-child(2){font-family:var(--serif);font-size:17px;line-height:1.45}
+.rows .trans{display:block;font-family:var(--sans);font-size:14px;margin-top:4px}
+.rows .cd{font-size:14px;font-weight:600;display:flex;gap:8px;align-items:baseline}
+.rows .cd i{width:12px;height:12px;border-radius:3px;flex:none;position:relative;top:1px}
+.rows .who{font-size:13.5px;color:var(--ink2)}
+.files{display:grid;grid-template-columns:5fr 2fr;gap:18px;margin:6px 0 4px}
+.fgrp .tiny{margin:0 0 6px}
+.frow{display:flex;gap:8px}
+.f{flex:1;min-width:0;border:1px dashed #cfccc4;border-radius:10px;padding:10px;font-size:13px;color:var(--muted);min-height:72px;line-height:1.35}
+.f.on{border:1px solid var(--blue);background:#eef4fc;color:var(--ink)}
+.f.on.t{border-color:var(--ink);background:var(--wash)}
+.f b{display:block;font-weight:600;font-size:13.5px}
+.f span{display:block;font-size:12.5px;color:var(--ink2);margin-top:4px}
+.lineage{display:flex;align-items:center;gap:10px;margin:8px 0 6px}
+.lineage .ln{flex:1;border:1px solid var(--line);background:var(--paper);border-radius:12px;padding:12px;font-size:13.5px;line-height:1.4}
+.lineage .ln.split{flex:1.5;display:flex;flex-direction:column;gap:8px;border:0;padding:0;background:none}
+.lineage .nb2{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--wash)}
+.lineage .nb2.a{border-color:var(--blue);background:#eef4fc}
+.lineage b{display:block;font-weight:600;font-size:14.5px}
+.lineage span{color:var(--ink2)}
+.lineage .arr{color:var(--muted);display:flex}
+.plan{padding-left:22px;margin:4px 0 14px;max-width:72ch}
+.plan li{margin:0 0 8px}
+.plan a{color:var(--ink);text-decoration:none}.plan a b{color:var(--blue)}
+@media (hover:hover) and (pointer:fine){.plan a:hover b{text-decoration:underline}}
+@media (max-width:760px){.rows .r{grid-template-columns:1fr;gap:4px}.rows .r.hd{display:none}.files{grid-template-columns:1fr}.frow{flex-wrap:wrap}.f{flex:1 1 40%}.lineage{flex-direction:column;align-items:stretch}.lineage .arr{transform:rotate(90deg);align-self:center}}
+
+.ros{padding:4px 16px}
+.ros .rr{display:grid;grid-template-columns:140px 1fr 1fr;gap:16px;padding:10px 0;border-top:1px solid var(--line);font-size:14.5px;line-height:1.45;align-items:baseline}
+.ros .rr.hd{border-top:0;font-size:13px;color:var(--muted);font-weight:600;padding:8px 0 6px}
+.ros .rr>span:first-child{font-weight:600}
+.ros .rr>span:nth-child(2){color:var(--ink2)}
+@media (max-width:760px){.ros .rr{grid-template-columns:1fr;gap:2px}.ros .rr.hd{display:none}.ros .rr>span:nth-child(2)::before{content:"Lectures: ";color:var(--muted)}.ros .rr>span:nth-child(3)::before{content:"Here: ";color:var(--muted)}}
 </style>
 </head>
 <body>
@@ -137,15 +176,74 @@ svg text{font-family:var(--sans)}
   </div></details>
 </header>
 
+<section class="part" id="p0">
+  <h2>The question, the data, the plan</h2>
+  <p class="sub">Read this first. It takes two minutes and sets up everything below.</p>
+
+  <h3 class="h3plain">The question</h3>
+  <p class="nar">Political scientists often want to know the tone of what politicians say: does the opposition attack more than the government, do MPs get harsher before an election? Coding thousands of sentences by hand is slow. Today we ask whether a network trained by someone else can do the coding, and how to check when its numbers can be trusted.</p>
+
+  <h3 class="h3plain">The data: ParlaSent</h3>
+  <p class="nar">ParlaSent (Mochtak, Rupnik and Ljubešić 2023) is a collection of single sentences from parliamentary debates. Trained coders read each sentence and gave it one of six codes for tone, which we write as numbers from 0 to 5. Each row also records who said it and when: country, party, gender, date, and whether the party was in government. Five rows from the files we use:</p>
+  <div class="panel rows" role="table" aria-label="Five example rows of ParlaSent">
+    <div class="r hd" role="row"><span role="columnheader">Code</span><span role="columnheader">Sentence</span><span role="columnheader">Speaker</span></div>
+    <div class="r" role="row"><span role="cell" class="cd"><i style="background:#2a78d6"></i>5 positive</span><span role="cell">“He is a tireless, vocal and fearless campaigner on these issues, and that should be recognised.”</span><span role="cell" class="who">UK · Conservative · Oct 2018</span></div>
+    <div class="r" role="row"><span role="cell" class="cd"><i style="background:#a9c3e6"></i>3 neutral, leaning pos.</span><span role="cell">“They focused on the NHS, and on making sure it was not overwhelmed.”</span><span role="cell" class="who">UK · Conservative · Dec 2020</span></div>
+    <div class="r" role="row"><span role="cell" class="cd"><i style="background:#ebbfa8"></i>2 neutral, leaning neg.</span><span role="cell">“Jer škola nije bilo kakva ustanova i nije za bilo koga.” <span class="trans">Because a school is not just any institution, and it is not for just anyone.</span></span><span role="cell" class="who">Croatia · HDZ · Feb 2004</span></div>
+    <div class="r" role="row"><span role="cell" class="cd"><i style="background:#e98a5d"></i>1 mostly negative</span><span role="cell">“It is a difficult decision, particularly to go against our own Government.”</span><span role="cell" class="who">UK · Conservative · Feb 2016</span></div>
+    <div class="r" role="row"><span role="cell" class="cd"><i style="background:#e2622c"></i>0 negative</span><span role="cell">“Vzpomeňte si, jak nadšeně říkal chorvatský ministr financí: Já vím úplně všechno.” <span class="trans">Remember how keenly the Croatian finance minister said: I know absolutely everything.</span></span><span role="cell" class="who">Czechia · ODS · Sep 2015</span></div>
+  </div>
+
+  <p class="nar" style="margin-top:22px">The data come in seven files of 2,600 sentences. In the five <b>training files</b> two coders coded every sentence and then agreed on a final code; network A below learned from these. In the two <b>test files</b> one coder coded each sentence, and no network has seen them, so they are where we check the network honestly. We use the four files marked in colour.</p>
+  <div class="files" aria-label="The seven ParlaSent files">
+    <div class="fgrp"><p class="tiny">Training files · two coders · network A learned from these</p>
+      <div class="frow">
+        <div class="f">Bosnian, Croatian, Serbian</div>
+        <div class="f on"><b>Czech</b><span>Part 4</span></div>
+        <div class="f">Slovak</div>
+        <div class="f">Slovenian</div>
+        <div class="f on"><b>English</b><span>Part 3</span></div>
+      </div></div>
+    <div class="fgrp"><p class="tiny">Test files · one coder · unseen by every network</p>
+      <div class="frow">
+        <div class="f on t"><b>Bosnian, Croatian, Serbian</b><span>Parts 1 to 3, 5</span></div>
+        <div class="f on t"><b>English</b><span>Parts 1 to 3, 5</span></div>
+      </div></div>
+  </div>
+
+  <h3 class="h3plain">The two networks</h3>
+  <p class="nar">Both start from XLM-R, a network with 24 layers and about 560 million weights. It learned language by a fill-in-the-blank game on text in 100 languages: hide a word, predict it. Researchers then trained it further on speeches from 26 European parliaments. From there the two networks part ways.</p>
+  <div class="lineage" aria-label="How networks A and B were trained">
+    <div class="ln"><b>XLM-R</b><span>fill in the blank, text in 100 languages</span></div>
+    <div class="arr" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16"><path d="M2 8h11M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="ln"><b>+ 1.72 billion words</b><span>from 26 European parliaments</span></div>
+    <div class="arr" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16"><path d="M2 8h11M9 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="ln split">
+      <div class="nb2"><b>Network B</b><span>stops here: has never seen a tone code. Part 4</span></div>
+      <div class="nb2 a"><b>Network A</b><span>+ the ParlaSent training codes: outputs a tone score from 0 to 5. Parts 1 to 3, 5</span></div>
+    </div>
+  </div>
+
+  <h3 class="h3plain">The plan for the section</h3>
+  <ol class="plan">
+    <li><a href="#p1"><b>One sentence through the network.</b></a> How network A turns a sentence into a score, in the notation of Lecture 18.</li>
+    <li><a href="#p2"><b>What the 24 layers learned.</b></a> A map of the features it borrows: one direction is tone, another is language.</li>
+    <li><a href="#p3"><b>Borrowed network or bag of words.</b></a> How close network A comes to a second human coder, and how far ahead of word counts.</li>
+    <li><a href="#p4"><b>Your own parliament, with few codes.</b></a> Using network B on Czech with 25 to 1,000 coded sentences.</li>
+    <li><a href="#p5"><b>Does the opposition sound more negative?</b></a> Using the scores in an analysis, and a data error that changes the answer.</li>
+  </ol>
+  <p class="small">Every part has questions with answers in red toggles, and a Python toggle that walks through the same step in code.</p>
+</section>
+
 <section class="part" id="p1">
   <h2><span class="pn">1</span>One sentence through the network</h2>
   <p class="sub">Pick a sentence and press play. The last two stages are Lecture 18's one-hidden-layer network; what is new is where its inputs come from.</p>
   <div class="chips" id="exChips" role="group" aria-label="Example sentences"></div>
   <div class="wash"><p class="sent" id="exText"></p><div class="trans" id="exTrans"></div></div>
   <div class="pipe" id="pipe">
-    <div class="stage" id="st0"><p class="st">Layers 1 to 24, pretrained</p><div class="layers" id="layers"></div><div class="cap">Each layer builds its features from the one before.</div></div>
+    <div class="stage" id="st0"><p class="st"><i>b</i><sup>(1)</sup> to <i>b</i><sup>(24)</sup>: 24 pretrained layers</p><div class="layers" id="layers"></div><div class="cap">Each layer builds its features from the one before.</div></div>
     <svg class="chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 4l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <div class="stage" id="st1"><p class="st"><i>u</i>(<i>x</i>): 1,024 borrowed features</p><canvas class="grid" id="gridU" width="32" height="32" aria-label="The 1,024 borrowed features of this sentence"></canvas><div class="cap">Sorted along the tone axis of Part 2.</div></div>
+    <div class="stage" id="st1"><p class="st"><i>u</i>(<i>x</i>) = <i>b</i><sup>(24)</sup>: 1,024 borrowed features</p><canvas class="grid" id="gridU" width="32" height="32" aria-label="The 1,024 borrowed features of this sentence"></canvas><div class="cap">Sorted along the tone axis of Part 2.</div></div>
     <svg class="chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 4l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     <div class="stage" id="st2"><p class="st"><i>b<sub>j</sub></i>(<i>x</i>): hidden layer, <i>J</i> = 1,024</p><canvas class="grid" id="gridB" width="32" height="32" aria-label="The 1,024 derived features of this sentence"></canvas><div class="cap">Sorted by <i>β<sub>j</sub></i>: the bottom rows push <i>ŷ</i> up.</div></div>
     <svg class="chev" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 4l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -154,14 +252,29 @@ svg text{font-family:var(--sans)}
   <svg id="dial" viewBox="0 0 900 82" width="100%" style="margin-top:12px;display:block" role="img" aria-label="Tone scale from 0 to 5 with the network's prediction and the coder's code"></svg>
   <div style="margin-top:6px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
     <button class="btn" id="play" type="button"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9-5.5z" fill="currentColor"/></svg><span>Play the forward pass</span></button>
-    <span class="mathline" style="flex:1 1 320px"><i>b<sub>j</sub></i> = tanh(<i>w</i><sub><i>j</i>0</sub> + Σ<sub><i>k</i></sub> <i>w<sub>jk</sub> u<sub>k</sub></i>) &nbsp;·&nbsp; <i>ŷ</i> = <i>β</i><sub>0</sub> + Σ<sub><i>j</i></sub> <i>β<sub>j</sub> b<sub>j</sub></i></span>
+    <span class="mathline" style="flex:1 1 320px"><i>b<sub>j</sub></i>(<i>x</i>) = <i>g</i>(<i>w</i><sub><i>j</i>0</sub> + Σ<sub><i>k</i></sub> <i>w<sub>jk</sub> u<sub>k</sub></i>(<i>x</i>)), &nbsp;<i>g</i> = tanh &nbsp;·&nbsp; <i>ŷ</i>(<i>x</i>) = <i>β</i><sub>0</sub> + Σ<sub><i>j</i></sub> <i>β<sub>j</sub> b<sub>j</sub></i>(<i>x</i>)</span>
   </div>
   <p class="tiny" style="margin-top:8px">The grids hold the network's real numbers for this sentence, relative to the average test sentence: blue above, orange below. Positive and negative sentences light up opposite ends.</p>
+
+  <h3>From the lectures to this page</h3>
+  <p class="nar">Nothing in the network is new. Each piece below is a piece of Lectures 18 and 19 under the same name; only the sizes and one or two choices differ.</p>
+  <div class="panel ros" role="table" aria-label="Lecture notation and this page">
+    <div class="rr hd" role="row"><span role="columnheader">Piece</span><span role="columnheader">In the lectures</span><span role="columnheader">On this page</span></div>
+    <div class="rr" role="row"><span role="cell">Inputs</span><span role="cell"><i>x<sub>k</sub></i>: <i>p</i> = 11 features of a polling station (L18), 784 pixels (L19)</span><span role="cell"><i>u<sub>k</sub></i>(<i>x</i>): <i>p</i> = 1,024 numbers that the 24 layers compute from the sentence <i>x</i></span></div>
+    <div class="rr" role="row"><span role="cell">Stacked layers</span><span role="cell"><i>b</i><sup>(1)</sup> = <i>g</i>(<i>w</i><sub>0</sub><sup>(1)</sup> + <i>W</i><sup>(1)</sup><i>x</i>), &nbsp;<i>b</i><sup>(2)</sup> = <i>g</i>(<i>w</i><sub>0</sub><sup>(2)</sup> + <i>W</i><sup>(2)</sup><i>b</i><sup>(1)</sup>): two layers (L19)</span><span role="cell">The same stacking 24 times, <i>b</i><sup>(1)</sup> to <i>b</i><sup>(24)</sup>; <i>u</i>(<i>x</i>) is <i>b</i><sup>(24)</sup>. Trained by someone else, then frozen</span></div>
+    <div class="rr" role="row"><span role="cell">Derived features</span><span role="cell"><i>b<sub>j</sub></i>(<i>x</i>) = <i>g</i>(<i>w</i><sub><i>j</i>0</sub> + Σ<sub><i>k</i></sub> <i>w<sub>jk</sub> x<sub>k</sub></i>), width <i>J</i> = 10 (L18)</span><span role="cell"><i>b<sub>j</sub></i>(<i>x</i>) = <i>g</i>(<i>w</i><sub><i>j</i>0</sub> + Σ<sub><i>k</i></sub> <i>w<sub>jk</sub> u<sub>k</sub></i>(<i>x</i>)), width <i>J</i> = 1,024</span></div>
+    <div class="rr" role="row"><span role="cell">Activation <i>g</i></span><span role="cell">sigmoid in <code>nnet</code> (L18), ReLU (L19)</span><span role="cell">tanh: an S-shaped bend, like the sigmoid, from −1 to 1</span></div>
+    <div class="rr" role="row"><span role="cell">Output</span><span role="cell">logit <i>π</i>(<i>x</i>) = <i>β</i><sub>0</sub> + Σ<sub><i>j</i></sub> <i>β<sub>j</sub> b<sub>j</sub></i>(<i>x</i>), turnout is 0 or 1</span><span role="cell"><i>ŷ</i>(<i>x</i>) = <i>β</i><sub>0</sub> + Σ<sub><i>j</i></sub> <i>β<sub>j</sub> b<sub>j</sub></i>(<i>x</i>), with no logit: tone is a number (<code>linout = TRUE</code>)</span></div>
+    <div class="rr" role="row"><span role="cell">Loss</span><span role="cell">log loss</span><span role="cell">squared error, as OLS minimizes the RSS</span></div>
+    <div class="rr" role="row"><span role="cell">Weights</span><span role="cell">(<i>p</i> + 1)<i>J</i> + <i>J</i> + 1 = 131 (L18)</span><span role="cell">(1,024 + 1) × 1,024 + 1,024 + 1 = 1,050,625 in the top two layers; about 560 million in all</span></div>
+    <div class="rr" role="row"><span role="cell">Training</span><span role="cell">quasi-Newton from ten starts (L18); SGD on minibatches of <i>n<sub>b</sub></i>, step size <i>α</i>, epochs (L19)</span><span role="cell">SGD, done once by the network's authors. We take their estimated weights, θ̂, as given and only run the forward pass</span></div>
+    <div class="rr" role="row"><span role="cell">Tuning</span><span role="cell">width <i>J</i> and weight decay <i>λ</i> by CV (L18)</span><span role="cell">Part 4 fits only the output weights <i>β</i>, with a ridge penalty <i>λ</i> chosen by CV: weight decay on the last layer alone</span></div>
+  </div>
 
   <h3>How many weights?</h3>
   <div id="wbars"></div>
 
-  <p class="q"><span class="qn">1.1</span>Lecture 19 fitted <code>nnet</code> with quasi-Newton steps, which need the curvature matrix <i>H</i>. Could the same method train this network?</p>
+  <p class="q"><span class="qn">1.1</span>Lecture 19 showed how <code>nnet</code> trained the turnout network: quasi-Newton updates <i>θ</i><sup>(<i>t</i>+1)</sup> = <i>θ</i><sup>(<i>t</i>)</sup> − <i>H</i><sup>−1</sup><i>s</i>, which need the curvature matrix <i>H</i>. Could the same method train this network?</p>
   <details class="tg ans"><summary><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1.5 7 5l-4 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Answer</summary><div class="body">No. <i>H</i> holds one number per <i>pair</i> of weights: about 10<sup>12</sup> for the last two layers alone, 3 × 10<sup>17</sup> for the whole network. It was trained the way Lecture 19 trained its wide network, with <b>SGD on minibatches</b> and one slope per weight from backpropagation (4 epochs, <i>n<sub>b</sub></i> = 32, <i>α</i> = 8 × 10<sup>−6</sup>).</div></details>
 
   <p class="q"><span class="qn">1.2</span>Play “UK · a miss”. Coders use whole numbers from 0 to 5. Why can <i>ŷ</i> be 3.3, or rise above 5?</p>
@@ -200,7 +313,7 @@ svg text{font-family:var(--sans)}
 
   <p class="q"><span class="qn">3.1</span>On UK sentences, how does the borrowed network compare with the bag of words, and with a second coder?</p>
   <details class="tg ans"><summary><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1.5 7 5l-4 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Answer</summary><div class="body" id="ans31"></div></details>
-  <p class="q"><span class="qn">3.2</span>Switch to Bosnian, Croatian, Serbian. Why does the bag of words collapse while the network does not?</p>
+  <p class="q"><span class="qn">3.2</span>Switch to Bosnian, Croatian, Serbian. Why does the bag of words collapse while the network keeps most of its accuracy?</p>
   <details class="tg ans"><summary><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1.5 7 5l-4 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Answer</summary><div class="body" id="ans32"></div></details>
 
   <details class="tg py"><summary><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1.5 7 5l-4 3.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Python, step by step: this part</summary><div class="body"><div class="nb" data-part="3"></div></div></details>
@@ -208,7 +321,7 @@ svg text{font-family:var(--sans)}
 
 <section class="part" id="p4">
   <h2><span class="pn">4</span>Your own parliament, with few codes</h2>
-  <p class="sub">You study the Czech parliament and can code <i>n</i> sentences. You borrow <b>network B</b>: the same 24 layers, never shown a sentiment code. Freeze them, fit only a ridge regression on <i>u</i>(<i>x</i>), and score 1,000 held-out Czech sentences. Drag the slider.</p>
+  <p class="sub">You study the Czech parliament and can code <i>n</i> sentences. You borrow <b>network B</b>: the same 24 layers, never shown a sentiment code. Freeze them, fit only a ridge regression of the codes on <i>u</i>(<i>x</i>) (an output layer with Lecture 18's weight decay <i>λ</i>), and score 1,000 held-out Czech sentences. Drag the slider.</p>
   <div class="panel">
     <svg id="lc" viewBox="0 0 680 310" width="100%" role="img" aria-label="Test R-squared by number of coded sentences"></svg>
     <div style="display:flex;gap:16px;align-items:center;margin-top:8px">
