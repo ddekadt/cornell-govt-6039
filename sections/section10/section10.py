@@ -1,4 +1,4 @@
-# Generated from section10_home.ipynb: the notebook is easier to read; open it in Google Colab or Jupyter.
+# Generated from section10.ipynb: the notebook is easier to read; open it in Google Colab or Jupyter.
 
 
 # # Borrowing a deep network: the code, step by step
@@ -45,7 +45,7 @@
 #
 # **The easiest way is Google Colab**, which runs Python in your browser for free:
 #
-# 1. Go to [colab.research.google.com](https://colab.research.google.com) and choose *File > Upload notebook*, then pick this file (`section10_home.ipynb`).
+# 1. Go to [colab.research.google.com](https://colab.research.google.com) and choose *File > Upload notebook*, then pick this file (`section10.ipynb`).
 # 2. Choose *Runtime > Change runtime type > T4 GPU*. A GPU makes the networks about 50 times faster. It is free.
 # 3. Run the cells from top to bottom: click into a cell and press **Shift + Enter**.
 #
