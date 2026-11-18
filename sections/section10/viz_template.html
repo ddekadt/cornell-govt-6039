@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Borrowing a deep network · GOVT 6039 Section 10</title>
+<meta name="description" content="Section 10 of GOVT 6039: a pretrained network measures the tone of parliamentary speech. Interactive walk-through with answers and Python code.">
+<style>
+@font-face{font-family:"IBM Plex Sans";font-weight:400;font-style:normal;font-display:swap;src:url(data:font/woff2;base64,__SANS400__) format("woff2")}
+@font-face{font-family:"IBM Plex Sans";font-weight:400;font-style:normal;font-display:swap;unicode-range:U+0100-024F,U+1E00-1EFF;src:url(data:font/woff2;base64,__SANS400X__) format("woff2")}
+@font-face{font-family:"IBM Plex Sans";font-weight:600;font-style:normal;font-display:swap;src:url(data:font/woff2;base64,__SANS600__) format("woff2")}
+@font-face{font-family:"IBM Plex Sans";font-weight:600;font-style:normal;font-display:swap;unicode-range:U+0100-024F,U+1E00-1EFF;src:url(data:font/woff2;base64,__SANS600X__) format("woff2")}
+@font-face{font-family:"IBM Plex Sans";font-weight:400;font-style:italic;font-display:swap;src:url(data:font/woff2;base64,__SANS400I__) format("woff2")}
+@font-face{font-family:"IBM Plex Mono";font-weight:400;font-style:normal;font-display:swap;src:url(data:font/woff2;base64,__MONO400__) format("woff2")}
+:root{
+  --ink:#141414; --ink2:#4f4e4a; --muted:#6b6a66; --line:#e4e2dc; --paper:#ffffff; --wash:#f5f4f0;
+  --blue:#2266b5; --orange:#e2622c; --aqua:#13946a; --violet:#7a5cc9; --red:#a8231b; --red-wash:#fbf2f0;
+  --serif:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,'Times New Roman',serif;
+  --sans:"IBM Plex Sans",-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --ease-out:cubic-bezier(.23,1,.32,1);
+}
+*{box-sizing:border-box}
+html{background:var(--paper);scrollbar-color:#c9c7c0 var(--paper)}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 16.5px/1.6 var(--sans);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+::selection{background:#cfe0f6;color:var(--ink)}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:6px}
+a{color:var(--blue);text-underline-offset:3px}
+code{font-family:var(--mono);font-size:.9em}
+main{max-width:960px;margin:0 auto;padding:40px 22px 96px}
+h1,h2,h3{font-family:var(--serif);font-weight:600;letter-spacing:-.012em;text-wrap:balance}
+h1{font-size:clamp(34px,5vw,50px);line-height:1.06;margin:0 0 10px}
+h2{font-size:clamp(25px,3.2vw,32px);line-height:1.15;margin:0 0 6px}
+h3{font-size:20px;line-height:1.25;margin:36px 0 8px}
+.byline{font-size:14px;color:var(--muted);margin:0 0 22px}
+.lede{font-size:19px;line-height:1.55;color:var(--ink2);max-width:68ch;margin:0}
+.lede b{color:var(--ink);font-weight:600}
+section.part{padding:64px 0 10px}
+section.part+section.part{border-top:1px solid var(--line)}
+.pn{font-family:var(--serif);color:var(--blue);margin-right:.35em}
+.sub{color:var(--ink2);max-width:66ch;margin:4px 0 22px}
+.num{font-variant-numeric:tabular-nums}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px}
+.wash{background:var(--wash);border-radius:14px;padding:16px 18px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+button{font:inherit;color:inherit}
+.chip,.seg button{min-height:36px;border:1px solid var(--line);background:var(--paper);border-radius:999px;padding:0 14px;font-size:14px;cursor:pointer;transition:background-color .16s ease,border-color .16s ease,color .16s ease,transform .16s var(--ease-out)}
+.chip:active,.seg button:active,.btn:active{transform:scale(.97)}
+@media (hover:hover) and (pointer:fine){.chip:hover,.seg button:hover{border-color:var(--ink2)}}
+.chip[aria-pressed="true"],.seg button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.seg{display:inline-flex;gap:6px;flex-wrap:wrap;margin:0 12px 12px 0}
+.btn{display:inline-flex;align-items:center;gap:8px;min-height:40px;border:0;background:var(--blue);color:#fff;border-radius:999px;padding:0 18px;font-size:15px;font-weight:600;cursor:pointer;transition:transform .16s var(--ease-out),background-color .16s ease}
+@media (hover:hover) and (pointer:fine){.btn:hover{background:#1c5799}}
+.btn svg{width:14px;height:14px}
+.small{font-size:14px;color:var(--ink2)}
+.tiny{font-size:13px;color:var(--muted)}
+.mathline{font-family:var(--serif);font-size:18px;color:var(--ink2)}
+.sent{font-family:var(--serif);font-size:21px;line-height:1.45;margin:0;color:var(--ink)}
+.trans{font-size:14.5px;color:var(--ink2);font-style:italic;margin-top:6px}
+.trans:empty{display:none}
+.pipe{display:grid;grid-template-columns:1.1fr 20px 1fr 20px 1fr 20px .9fr;align-items:stretch;gap:6px;margin-top:18px}
+.stage{border:1px solid var(--line);border-radius:14px;padding:12px 12px 10px;background:var(--paper);transition:border-color .3s ease,box-shadow .3s ease;min-width:0;display:flex;flex-direction:column}
+.stage.live{border-color:var(--blue);box-shadow:0 4px 18px rgba(42,120,214,.16)}
+.stage .st{margin:0 0 8px;font:600 13px/1.3 var(--sans);color:var(--ink2)}
+.stage .cap{font-size:12.5px;color:var(--muted);margin-top:8px;line-height:1.4}
+.chev{align-self:center;color:#b9b7b0;width:20px;height:20px}
+.layers{display:flex;gap:2px;align-items:stretch;flex:1;min-height:96px}
+.layers span{flex:1;background:#eceae4;border-radius:2px;transition:background-color .15s ease}
+.layers span.lit{background:var(--blue)}
+canvas.grid{width:100%;aspect-ratio:1;image-rendering:pixelated;border-radius:8px;background:#f0efea;display:block}
+.yval{font:600 44px/1 var(--serif);letter-spacing:-.02em;margin-top:6px;font-variant-numeric:tabular-nums}
+@media (max-width:760px){.pipe{grid-template-columns:1fr 1fr}.chev{display:none}}
+details.tg{margin:14px 0 0}
+details.tg>summary{display:inline-flex;align-items:center;gap:8px;min-height:34px;cursor:pointer;list-style:none;user-select:none;font-size:13.5px;font-weight:600;border-radius:999px;padding:0 14px;transition:background-color .16s ease,color .16s ease}
+details.tg>summary::-webkit-details-marker{display:none}
+details.tg>summary svg{width:10px;height:10px;transition:transform .2s var(--ease-out)}
+details.tg[open]>summary svg{transform:rotate(90deg)}
+details.ans>summary{color:var(--red);background:var(--red-wash);border:1px solid #efd3cf}
+details.ans[open]>summary{background:var(--red);color:#fff;border-color:var(--red)}
+details.ans>.body{margin-top:10px;padding:14px 18px;border-radius:12px;background:var(--red-wash);border:1px solid #f1dcd8;color:#33140f;max-width:78ch}
+details.py>summary{color:var(--ink);background:var(--wash);border:1px solid var(--line)}
+details.py[open]>summary{background:var(--ink);color:#fff;border-color:var(--ink)}
+details.py>.body{margin-top:10px}
+.tg .body{animation:open .22s var(--ease-out)}
+@keyframes open{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.tg .body{animation:none}}
+.q{margin:30px 0 0;font-weight:600;max-width:72ch}
+.q .qn{color:var(--blue);font-variant-numeric:tabular-nums;margin-right:6px}
+.code{background:#16181d;color:#e6e4dc;border-radius:12px;padding:14px 18px 16px;overflow:auto;font:400 13.4px/1.62 var(--mono);max-height:560px}
+.code pre{margin:0;white-space:pre}
+.code .c{color:#a3c193}.code .s{color:#e8b77a}.code .k{color:#94bdf3}.code .n{color:#dcaaea}
+.codebar{display:flex;justify-content:flex-end;margin-bottom:4px}
+.copy{min-height:30px;border:1px solid #3a3d45;background:#22252c;color:#e6e4dc;border-radius:8px;padding:0 12px;font:600 12px var(--sans);cursor:pointer}
+.nb{max-width:880px}
+.nb .md{max-width:72ch;margin:18px 0 10px;color:var(--ink)}
+.nb .md h1{font-size:26px;margin:6px 0 6px}.nb .md h2{font-size:22px;margin:26px 0 6px}
+.nb .md p{margin:0 0 10px}.nb .md ul{margin:0 0 10px;padding-left:1.2em}.nb .md li{margin:0 0 4px}
+.nb .md code{background:var(--wash);padding:1px 5px;border-radius:5px}
+.nb .md em{color:var(--ink2)}
+.nb .code{margin:8px 0 6px}
+.tx{font-family:var(--serif);font-size:1.05em}
+.code-note{font-size:14px;color:var(--ink2);margin:0 0 10px;max-width:72ch}
+.wbar{display:grid;grid-template-columns:230px 1fr 130px;align-items:center;gap:12px;margin:8px 0;font-size:14.5px}
+.wbar .track{height:12px;background:#eeede8;border-radius:6px;overflow:hidden}
+.wbar .fill{height:100%;border-radius:6px}
+.wbar .v{text-align:right;color:var(--ink2);font-variant-numeric:tabular-nums}
+@media (max-width:620px){.wbar{grid-template-columns:1fr 120px}.wbar .track{grid-column:1/3;order:3}}
+.tok{display:inline-block;padding:2px 7px;margin:3px 2px;border-radius:6px;background:#ecebe6;color:var(--muted);font-size:15.5px}
+.tok.hit{background:#fbe2d6;color:#8a2f0e;font-weight:600}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink2);margin-top:10px;align-items:center}
+.sw{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.grad{display:inline-block;width:110px;height:8px;border-radius:4px;margin:0 6px}
+.readout{font:600 40px/1 var(--serif);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.readout-l{font-size:13.5px;color:var(--ink2);margin-top:4px}
+input[type=range]{width:100%;accent-color:var(--blue);height:28px}
+ol.take{padding-left:1.3em;max-width:70ch}
+ol.take li{margin:0 0 14px;padding-left:4px}
+.foot{font-size:13px;color:var(--muted);margin-top:44px;line-height:1.6;border-top:1px solid var(--line);padding-top:18px}
+#toggleAll{position:fixed;right:16px;bottom:16px;z-index:9;min-height:36px;font:600 13px var(--sans);color:var(--red);background:var(--paper);border:1px solid #efd3cf;border-radius:999px;padding:0 16px;box-shadow:0 2px 10px rgba(0,0,0,.10);cursor:pointer}
+.row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+svg text{font-family:var(--sans)}
+.prereq{font-size:15.5px;color:var(--ink2);margin:16px 0 0;max-width:68ch}
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <h1>Borrowing a deep network</h1>
+  <p class="byline">GOVT 6039 · Section 10 · 18 November 2026 · on Lectures 18 and 19</p>
+  <p class="lede">Lecture 19's network read handwritten digits at 72% after 21,844 labelled examples. Speech is harder than digits, and you will have a few hundred coded sentences, not twenty thousand. So we <b>borrow</b> a network someone else trained: XLM-R, 24 layers, trained further on 1.72 billion words from 26 European parliaments, then fitted to sentences coded for tone. When can we trust it?</p>
+  <p class="prereq">New to Python? Start with <a href="https://georgytarasenko.com/teaching/govt-6039-python-for-r/">Python for R users</a>, the course guide to Python for people who know R. It covers how the two languages differ, NumPy, pandas, and a neuron trained by hand.</p>
+  <details class="tg py" style="margin-top:22px"><summary>__CHEV__Run it yourself in Python: start here</summary><div class="body">
+    <p class="code-note">Every part of this page has a step-by-step Python walk-through in its own toggle, written for people who have not used Python before. The same walk-through is one notebook: <a href="#" id="dlNb">download section10_home.ipynb</a> and open it in Google Colab, or get it as a plain script, <a href="#" id="dlPy">section10_home.py</a>.</p>
+    <div class="nb" data-part="intro"></div>
+    <div class="nb" data-part="0"></div>
+  </div></details>
+</header>
+
+<section class="part" id="p1">
+  <h2><span class="pn">1</span>One sentence through the network</h2>
+  <p class="sub">Pick a sentence and press play. The last two stages are Lecture 18's one-hidden-layer network; what is new is where its inputs come from.</p>
+  <div class="chips" id="exChips" role="group" aria-label="Example sentences"></div>
+  <div class="wash"><p class="sent" id="exText"></p><div class="trans" id="exTrans"></div></div>
+  <div class="pipe" id="pipe">
+    <div class="stage" id="st0"><p class="st">Layers 1 to 24, pretrained</p><div class="layers" id="layers"></div><div class="cap">Each layer builds its features from the one before.</div></div>
+    __CHEVR__
+    <div class="stage" id="st1"><p class="st"><i>u</i>(<i>x</i>): 1,024 borrowed features</p><canvas class="grid" id="gridU" width="32" height="32" aria-label="The 1,024 borrowed features of this sentence"></canvas><div class="cap">Sorted along the tone axis of Part 2.</div></div>
+    __CHEVR__
+    <div class="stage" id="st2"><p class="st"><i>b<sub>j</sub></i>(<i>x</i>): hidden layer, <i>J</i> = 1,024</p><canvas class="grid" id="gridB" width="32" height="32" aria-label="The 1,024 derived features of this sentence"></canvas><div class="cap">Sorted by <i>β<sub>j</sub></i>: the bottom rows push <i>ŷ</i> up.</div></div>
+    __CHEVR__
+    <div class="stage" id="st3"><p class="st">Output <i>ŷ</i></p><div class="yval" id="yval">–</div><div class="small" id="coderVal" style="margin-top:8px">&nbsp;</div><div class="cap">A linear output layer: a regression on the <i>b<sub>j</sub></i>.</div></div>
+  </div>
+  <svg id="dial" viewBox="0 0 900 82" width="100%" style="margin-top:12px;display:block" role="img" aria-label="Tone scale from 0 to 5 with the network's prediction and the coder's code"></svg>
+  <div style="margin-top:6px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+    <button class="btn" id="play" type="button"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9-5.5z" fill="currentColor"/></svg><span>Play the forward pass</span></button>
+    <span class="mathline" style="flex:1 1 320px"><i>b<sub>j</sub></i> = tanh(<i>w</i><sub><i>j</i>0</sub> + Σ<sub><i>k</i></sub> <i>w<sub>jk</sub> u<sub>k</sub></i>) &nbsp;·&nbsp; <i>ŷ</i> = <i>β</i><sub>0</sub> + Σ<sub><i>j</i></sub> <i>β<sub>j</sub> b<sub>j</sub></i></span>
+  </div>
+  <p class="tiny" style="margin-top:8px">The grids hold the network's real numbers for this sentence, relative to the average test sentence: blue above, orange below. Positive and negative sentences light up opposite ends.</p>
+
+  <h3>How many weights?</h3>
+  <div id="wbars"></div>
+
+  <p class="q"><span class="qn">1.1</span>Lecture 19 fitted <code>nnet</code> with quasi-Newton steps, which need the curvature matrix <i>H</i>. Could the same method train this network?</p>
+  <details class="tg ans"><summary>__CHEV__Answer</summary><div class="body">No. <i>H</i> holds one number per <i>pair</i> of weights: about 10<sup>12</sup> for the last two layers alone, 3 × 10<sup>17</sup> for the whole network. It was trained the way Lecture 19 trained its wide network, with <b>SGD on minibatches</b> and one slope per weight from backpropagation (4 epochs, <i>n<sub>b</sub></i> = 32, <i>α</i> = 8 × 10<sup>−6</sup>).</div></details>
+
+  <p class="q"><span class="qn">1.2</span>Play “UK · a miss”. Coders use whole numbers from 0 to 5. Why can <i>ŷ</i> be 3.3, or rise above 5?</p>
+  <details class="tg ans"><summary>__CHEV__Answer</summary><div class="body">The output layer is a <b>regression</b> on the derived features (<code>linout = TRUE</code> in <code>nnet</code>), so nothing ties <i>ŷ</i> to whole numbers or to the range of the scale. Here the coder read a plea for fairness as positive (5); the network was unsure (3.3). To compare groups, leave <i>ŷ</i> as it is; to report single scores, clip it to [0, 5].</div></details>
+
+  <details class="tg py"><summary>__CHEV__Python, step by step: this part</summary><div class="body"><div class="nb" data-part="1"></div></div></details>
+</section>
+
+<section class="part" id="p2">
+  <h2><span class="pn">2</span>What the 24 layers learned</h2>
+  <p class="sub">Each dot is one of the 3,000 test sentences, placed by its 1,024 borrowed features, squeezed onto the two directions in which the sentences differ most (principal components, coming in Lecture 20).</p>
+  <div class="seg" id="mapSeg" role="group" aria-label="Colour the map by"><button type="button" data-k="code" aria-pressed="true">Colour by human code</button><button type="button" data-k="lang" aria-pressed="false">Colour by language</button></div>
+  <div class="panel" style="padding:10px"><canvas id="map" style="width:100%;display:block" role="img" aria-label="Map of 3,000 test sentences"></canvas></div>
+  <div class="legend" id="mapLegend"></div>
+
+  <p class="q"><span class="qn">2.1</span>What does the horizontal axis measure, and what does the vertical one? Why does that matter for a network fitted mostly to <i>other</i> parliaments?</p>
+  <details class="tg ans"><summary>__CHEV__Answer</summary><div class="body" id="ans21"></div></details>
+
+  <details class="tg py"><summary>__CHEV__Python, step by step: this part</summary><div class="body"><div class="nb" data-part="2"></div></div></details>
+</section>
+
+<section class="part" id="p3">
+  <h2><span class="pn">3</span>Borrowed network or bag of words</h2>
+  <p class="sub">The model you would fit without borrowing: ridge regression on word counts, trained on 2,600 coded UK sentences. Each dot is one of 1,500 test sentences; perfect predictions sit on the dashed line.</p>
+  <div><div class="seg" id="scModel" role="group" aria-label="Model"><button type="button" data-k="net" aria-pressed="true">Borrowed network</button><button type="button" data-k="bow" aria-pressed="false">Bag of words</button></div><div class="seg" id="scLang" role="group" aria-label="Sentences"><button type="button" data-k="0" aria-pressed="true">UK sentences</button><button type="button" data-k="1" aria-pressed="false">Bosnian, Croatian, Serbian</button></div></div>
+  <div class="row">
+    <div class="panel" style="flex:3;min-width:300px;padding:10px"><canvas id="sc" style="width:100%;display:block" role="img" aria-label="Human code against prediction"></canvas></div>
+    <div style="flex:1;min-width:180px;padding:6px 4px">
+      <div class="readout" id="scR2">–</div><div class="readout-l">test <i>R</i>², these 1,500 sentences</div>
+      <div class="readout" style="margin-top:22px" id="scCoder">–</div><div class="readout-l">a second UK coder predicting the first</div>
+    </div>
+  </div>
+
+  <h3>What the bag of words sees in a Serbian sentence</h3>
+  <div class="wash"><div id="bowToks"></div><div class="trans" id="bowTrans"></div><div class="small" id="bowNote" style="margin-top:10px"></div></div>
+
+  <p class="q"><span class="qn">3.1</span>On UK sentences, how does the borrowed network compare with the bag of words, and with a second coder?</p>
+  <details class="tg ans"><summary>__CHEV__Answer</summary><div class="body" id="ans31"></div></details>
+  <p class="q"><span class="qn">3.2</span>Switch to Bosnian, Croatian, Serbian. Why does the bag of words collapse while the network does not?</p>
+  <details class="tg ans"><summary>__CHEV__Answer</summary><div class="body" id="ans32"></div></details>
+
+  <details class="tg py"><summary>__CHEV__Python, step by step: this part</summary><div class="body"><div class="nb" data-part="3"></div></div></details>
+</section>
+
+<section class="part" id="p4">
+  <h2><span class="pn">4</span>Your own parliament, with few codes</h2>
+  <p class="sub">You study the Czech parliament and can code <i>n</i> sentences. You borrow <b>network B</b>: the same 24 layers, never shown a sentiment code. Freeze them, fit only a ridge regression on <i>u</i>(<i>x</i>), and score 1,000 held-out Czech sentences. Drag the slider.</p>
+  <div class="panel">
+    <svg id="lc" viewBox="0 0 680 310" width="100%" role="img" aria-label="Test R-squared by number of coded sentences"></svg>
+    <div style="display:flex;gap:16px;align-items:center;margin-top:8px">
+      <label for="nSlider" class="small" style="white-space:nowrap">Sentences you code: <b class="num" id="nLab">50</b></label>
+      <input type="range" id="nSlider" min="0" max="4" step="1" value="0">
+    </div>
+  </div>
+
+  <p class="q"><span class="qn">4.1</span>How many sentences would the bag of words need to match the borrowed features at 100? Why is the gap so wide?</p>
+  <details class="tg ans"><summary>__CHEV__Answer</summary><div class="body" id="ans41"></div></details>
+  <p class="q"><span class="qn">4.2</span>So should you always freeze and fit your own output layer? Compare the blue line with the dashed ones.</p>
+  <details class="tg ans"><summary>__CHEV__Answer</summary><div class="body" id="ans42"></div></details>
+
+  <details class="tg py"><summary>__CHEV__Python, step by step: this part</summary><div class="body"><div class="nb" data-part="4"></div></div></details>
+</section>
+
+<section class="part" id="p5">
+  <h2><span class="pn">5</span>Does the opposition sound more negative?</h2>
+  <p class="sub">A measure is only as good as the comparison you make with it. First, check the covariate: whether each UK speaker's party was in government, as the data's <code>ruling</code> field records it.</p>
+  <div class="seg" id="rulSeg" role="group" aria-label="Government status"><button type="button" data-k="coded" aria-pressed="true">As coded in the data</button><button type="button" data-k="true" aria-pressed="false">Who governed</button></div>
+  <div class="panel"><svg id="rul" viewBox="0 0 680 160" width="100%" role="img" aria-label="Government status by party and year"></svg></div>
+
+  <p class="q"><span class="qn">5.1</span>What went wrong in the data?</p>
+  <details class="tg ans"><summary>__CHEV__Answer</summary><div class="body">The Conservatives governed throughout: with the Liberal Democrats until May 2015, alone after that. The field records <b>coalition</b> membership, so a single-party government counts as not governing. Recode government status from party and date. Nothing in the network's accuracy would have warned you.</div></details>
+
+  <h3>Opposition minus government, mean tone on the 0 to 5 scale</h3>
+  <div class="seg" id="gapSeg" role="group" aria-label="UK government status"><button type="button" data-k="fixed" aria-pressed="true">UK recoded</button><button type="button" data-k="raw" aria-pressed="false">UK as coded</button></div>
+  <div class="panel"><svg id="gap" viewBox="0 0 680 250" width="100%" role="img" aria-label="Gap in tone between opposition and government, coders and network"></svg></div>
+  <div class="legend"><span><span class="sw" style="background:var(--ink)"></span>human coders</span><span><span class="sw" style="background:var(--blue)"></span>borrowed network</span><span>lines: 95% intervals</span><span>under each name: sentences from government · opposition speakers</span></div>
+
+  <p class="q"><span class="qn">5.2</span>The network gets every sign right. Where would you hesitate to report its number, and how would you check it?</p>
+  <details class="tg ans"><summary>__CHEV__Answer</summary><div class="body" id="ans52"></div></details>
+
+  <details class="tg py"><summary>__CHEV__Python, step by step: this part</summary><div class="body"><div class="nb" data-part="5"></div></div></details>
+</section>
+
+<section class="part">
+  <h2>What to take away</h2>
+  <ol class="take">
+    <li><b>Lecture 18 sits on top.</b> The last two layers are a one-hidden-layer network with <i>p</i> = <i>J</i> = 1,024; the 24 layers below supply the basis functions we cannot hand-build for words.</li>
+    <li><b>Score it where it was not trained.</b> Network A had seen Czech codes, so Czech went to network B. Always ask what a borrowed network saw.</li>
+    <li><b>Borrow the closest network.</b> A network fine-tuned for your task beats frozen features plus your own codes, which beat word counts.</li>
+    <li><b>Judge it by your comparison.</b> Sentence-level <i>R</i>² is not enough: check that the errors are the same in the groups you compare.</li>
+  </ol>
+  <p class="foot">Data: Mochtak, Rupnik and Ljubešić (2023), <i>ParlaSent 1.0</i>, CLARIN.SI, CC BY-SA 4.0; 1,500 random sentences from each test file and 2,000 Czech sentences. Networks: <code>classla/xlm-r-parlasent</code> (A) and <code>classla/xlm-r-parla</code> (B), Apache 2.0; Mochtak, Rupnik, Kuzman and Ljubešić (2025), <i>Political Research Exchange</i>; Conneau et al. (2020). Every number on this page comes from <code>section10_instructor.qmd</code> and its cached network outputs.</p>
+</section>
+</main>
+<button id="toggleAll" type="button">Show all answers</button>
+
+<script>
+const D = __DATA__;
+const NB = __CODE__;
+const IPYNB = __IPYNB__;
+const PYFILE = __PYFILE__;
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const C = {ink:'#141414',ink2:'#4f4e4a',muted:'#6b6a66',line:'#e4e2dc',blue:'#2a78d6',orange:'#e2622c',aqua:'#13946a',violet:'#7a5cc9'};
+const FONT = '"IBM Plex Sans",-apple-system,"Segoe UI",sans-serif';
+const f2 = x => (Math.round(x*100)/100).toFixed(2).replace('-','−');
+const pc = x => Math.round(x*100)+'%';
+const lerp = (a,b,t)=>a+(b-a)*t;
+const easeOut = t => 1-Math.pow(1-t,4);
+const easeInOut = t => t<.5 ? 8*t*t*t*t : 1-Math.pow(-2*t+2,4)/2;
+const lin = t => t;
+function hex(h){return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]}
+const OR=hex(C.orange), BL=hex(C.blue), GR=[216,214,208];
+function divColor(v){ v=Math.max(-1,Math.min(1,v)); const t=Math.abs(v), a=v<0?OR:BL; return [lerp(GR[0],a[0],t),lerp(GR[1],a[1],t),lerp(GR[2],a[2],t)] }
+const codeColor = c => divColor((c-2.5)/2.5);
+const rgb = a => `rgb(${a.map(Math.round).join(',')})`;
+function animate(dur, fn, done, ease=easeOut){ if(reduce){fn(1); done&&done(); return}
+  const t0=performance.now(); (function step(now){const t=Math.min(1,Math.max(0,(now-t0)/dur)); fn(ease(t)); if(t<1) requestAnimationFrame(step); else done&&done()})(t0) }
+function onVisible(el, fn){ const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){fn();io.disconnect()}})},{threshold:.35}); io.observe(el) }
+function seg(id, cb){ const el=document.getElementById(id); el.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{ if(b.getAttribute('aria-pressed')==='true') return; el.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed','false')); b.setAttribute('aria-pressed','true'); cb(b.dataset.k)})) }
+function svgW(el, min){ const w=Math.round(el.clientWidth||el.parentNode.clientWidth||680); return Math.max(min||300,w) }
+function fitCanvas(cv, ratio){ const w=cv.clientWidth||600, dpr=window.devicePixelRatio||1, h=Math.max(260,w*ratio); cv.width=w*dpr; cv.height=h*dpr; cv.style.height=h+'px'; const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); return {ctx,w,h} }
+
+/* code blocks */
+const KW = new Set('import from as def return for in if else elif with not and or True False None continue lambda'.split(' '));
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function highlight(src){
+  let out='', i=0; const n=src.length;
+  while(i<n){ const ch=src[i];
+    if(ch==='#'){ let j=src.indexOf('\n',i); if(j<0) j=n; out+=`<span class="c">${esc(src.slice(i,j))}</span>`; i=j; continue }
+    if(ch==='"'||ch==="'"){ const q=src.startsWith(ch.repeat(3),i)?ch.repeat(3):ch; let j=i+q.length; while(j<n && !src.startsWith(q,j)){ if(src[j]==='\\') j++; j++ } j=Math.min(n,j+q.length);
+      out+=`<span class="s">${esc(src.slice(i,j))}</span>`; i=j; continue }
+    if(/[A-Za-z_]/.test(ch)){ let j=i; while(j<n && /[A-Za-z0-9_]/.test(src[j])) j++; const w=src.slice(i,j);
+      if((w==='r'||w==='f')&&(src[j]==='"'||src[j]==="'")){ out+=`<span class="s">${w}</span>`; i=j; continue }
+      out+= KW.has(w)?`<span class="k">${w}</span>`:esc(w); i=j; continue }
+    if(/[0-9]/.test(ch)){ let j=i; while(j<n && /[0-9._]/.test(src[j])) j++; out+=`<span class="n">${src.slice(i,j)}</span>`; i=j; continue }
+    out+=esc(ch); i++ }
+  return out }
+function codeBlock(src){ const div=document.createElement('div'); div.className='code';
+  div.innerHTML=`<div class="codebar"><button class="copy" type="button">Copy</button></div><pre>${highlight(src)}</pre>`;
+  div.querySelector('.copy').addEventListener('click',e=>{ const b=e.currentTarget; navigator.clipboard.writeText(src).then(()=>{ b.textContent='Copied'; setTimeout(()=>b.textContent='Copy',1400) },()=>{ b.textContent='Select and copy by hand' }) });
+  return div }
+document.querySelectorAll('.nb[data-part]').forEach(el=>{ (NB[el.dataset.part]||[]).forEach(c=>{
+  if(c.t==='md'){ const d=document.createElement('div'); d.className='md'; d.innerHTML=c.h; el.appendChild(d) } else el.appendChild(codeBlock(c.s)) }) });
+function dl(name, text, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000) }
+document.getElementById('dlNb').addEventListener('click',e=>{ e.preventDefault(); dl('section10_home.ipynb', IPYNB, 'application/x-ipynb+json') });
+document.getElementById('dlPy').addEventListener('click',e=>{ e.preventDefault(); dl('section10_home.py', PYFILE, 'text/x-python') });
+
+/* Part 1: forward pass */
+const labels=['UK · thanks','UK · praise','UK · criticism','UK · procedure','UK · a miss','Croatian · support','Serbian · criticism','Croatian · praise'];
+let cur=0, playing=false;
+const chips=document.getElementById('exChips');
+D.examples.forEach((e,i)=>{ const b=document.createElement('button'); b.className='chip'; b.type='button'; b.textContent=labels[i]; b.setAttribute('aria-pressed', i?'false':'true');
+  b.addEventListener('click',()=>{ if(playing) return; cur=i; chips.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed','false')); b.setAttribute('aria-pressed','true'); showEx(); drawMap() }); chips.appendChild(b) });
+const layersEl=document.getElementById('layers'); for(let i=0;i<24;i++) layersEl.appendChild(document.createElement('span'));
+function drawGrid(id, vals, scale, upto){ const ctx=document.getElementById(id).getContext('2d'), img=ctx.createImageData(32,32);
+  for(let k=0;k<1024;k++){ const c = k<upto ? divColor(vals[k]/scale) : [240,239,234]; img.data.set([c[0],c[1],c[2],255],k*4) } ctx.putImageData(img,0,0) }
+function drawDial(yhat, y){
+  const s=document.getElementById('dial'), Wd=svgW(s), narrow=Wd<560, H=narrow?62:82; s.setAttribute('viewBox',`0 0 ${Wd} ${H}`);
+  const x=v=>24+(Math.max(-0.5,Math.min(5.7,v))+0.5)/6.2*(Wd-48);
+  const names=['negative','mostly negative','neutral, leaning neg.','neutral, leaning pos.','mostly positive','positive'];
+  let h=`<defs><linearGradient id="dg"><stop offset="0" stop-color="${C.orange}"/><stop offset=".5" stop-color="#d8d6d0"/><stop offset="1" stop-color="${C.blue}"/></linearGradient></defs><rect x="${x(0)}" y="36" width="${x(5)-x(0)}" height="8" rx="4" fill="url(#dg)"/>`;
+  for(let k=0;k<=5;k++){ h+=`<text x="${x(k)}" y="63" font-size="14" font-weight="600" text-anchor="middle" fill="${C.ink}">${k}</text>`; if(!narrow) h+=`<text x="${x(k)}" y="79" font-size="11.5" text-anchor="middle" fill="${C.muted}">${names[k]}</text>` }
+  if(narrow) h+=`<text x="${x(0)}" y="26" font-size="11.5" fill="${C.muted}">negative</text><text x="${x(5)}" y="26" font-size="11.5" text-anchor="end" fill="${C.muted}">positive</text>`;
+  const close = y!=null && yhat!=null && Math.abs(x(y)-x(yhat))<90, coderLeft = y!=null && yhat!=null && x(y)<x(yhat);
+  const lab=(xx,txt,col,w8,side)=> side===0 ? `<text x="${xx}" y="14" font-size="12.5" ${w8} text-anchor="middle" fill="${col}">${txt}</text>` : `<text x="${xx+(side>0?8:-8)}" y="14" font-size="12.5" ${w8} text-anchor="${side>0?'start':'end'}" fill="${col}">${txt}</text>`;
+  if(y!=null) h+=`<circle cx="${x(y)}" cy="40" r="8" fill="${C.ink}" stroke="#fff" stroke-width="2.5"/>`+(narrow&&yhat!=null?'':lab(x(y),'coder',C.ink,'',close?(coderLeft?-1:1):0));
+  if(yhat!=null) h+=`<path d="M${x(yhat)} 31 l-9 -12 h18 z" fill="${C.blue}"/>`+(narrow?'':lab(x(yhat),'network',C.blue,'font-weight="600"',close?(coderLeft?1:-1):0));
+  s.innerHTML=h }
+function setCoder(e){ document.getElementById('coderVal').textContent = e ? `human coder: ${e.y}` : ' ' }
+function showEx(){ const e=D.examples[cur];
+  document.getElementById('exText').textContent='“'+e.s+'”'; document.getElementById('exTrans').textContent=e.en?('“'+e.en+'”'):'';
+  layersEl.querySelectorAll('span').forEach(s=>s.classList.add('lit')); drawGrid('gridU',e.u,D.scaleU,1024); drawGrid('gridB',e.b,D.scaleB,1024);
+  document.getElementById('yval').textContent=f2(e.yhat); setCoder(e); drawDial(e.yhat,e.y) }
+function play(){ if(playing) return; playing=true; const e=D.examples[cur], btn=document.getElementById('play');
+  const st=[0,1,2,3].map(i=>document.getElementById('st'+i)), L=layersEl.querySelectorAll('span'), live=i=>st.forEach((s,j)=>s.classList.toggle('live',j===i));
+  L.forEach(s=>s.classList.remove('lit')); drawGrid('gridU',e.u,D.scaleU,0); drawGrid('gridB',e.b,D.scaleB,0); document.getElementById('yval').textContent='–'; setCoder(null); drawDial(null,null); live(0);
+  animate(1400,t=>{const k=Math.floor(t*24); L.forEach((s,i)=>s.classList.toggle('lit',i<k))},()=>{ L.forEach(s=>s.classList.add('lit')); live(1);
+    animate(900,t=>drawGrid('gridU',e.u,D.scaleU,Math.floor(t*1024)),()=>{ live(2);
+      animate(900,t=>drawGrid('gridB',e.b,D.scaleB,Math.floor(t*1024)),()=>{ live(3);
+        animate(700,t=>{ document.getElementById('yval').textContent=f2(e.yhat*t); drawDial(lerp(-0.5,e.yhat,t),null) },()=>{ drawDial(e.yhat,e.y); setCoder(e);
+          setTimeout(()=>{ live(-1); playing=false; btn.querySelector('span').textContent='Play again' },400) }) },lin) },lin) },lin) }
+document.getElementById('play').addEventListener('click',play);
+showEx(); onVisible(document.getElementById('pipe'),()=>setTimeout(play,250));
+
+const W=[['Lecture 18: turnout network',131,'#9c9a94'],['This network: last two layers',1050625,C.blue],['This network: all weights',560e6,C.ink]], wb=document.getElementById('wbars');
+W.forEach(([l,v,c])=>{ const d=document.createElement('div'); d.className='wbar'; d.innerHTML=`<span>${l}</span><div class="track"><div class="fill" style="background:${c};width:${(Math.log10(v)/Math.log10(560e6)*100).toFixed(1)}%"></div></div><span class="v">${v>=1e8?'about 560 million':v.toLocaleString('en-US')}</span>`; wb.appendChild(d) });
+wb.insertAdjacentHTML('beforeend','<div class="tiny">Log scale: each step to the right multiplies the count by about a thousand.</div>');
+
+/* Part 2: map */
+const M=D.map; let mapMix=0; const mapCv=document.getElementById('map');
+const mx=[Math.min(...M.x),Math.max(...M.x)], my=[Math.min(...M.y),Math.max(...M.y)];
+function drawMap(){ const {ctx,w,h}=fitCanvas(mapCv,.6), pad=38;
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+  const X=v=>pad+(v-mx[0])/(mx[1]-mx[0])*(w-pad-14), Y=v=>h-pad-(v-my[0])/(my[1]-my[0])*(h-pad-14);
+  const r = w<500?1.7:2.3, VI=hex(C.violet), AQ=hex(C.aqua);
+  for(let i=0;i<M.x.length;i++){ const cc=codeColor(M.code[i]), lc=M.lang[i]?VI:AQ, c=[0,1,2].map(k=>lerp(cc[k],lc[k],mapMix));
+    ctx.fillStyle=`rgba(${c.map(Math.round).join(',')},.6)`; ctx.beginPath(); ctx.arc(X(M.x[i]),Y(M.y[i]),r,0,7); ctx.fill() }
+  ctx.fillStyle=C.ink2; ctx.font=`13px ${FONT}`; ctx.textAlign='center';
+  ctx.fillText(`axis 1, ${pc(M.ev[0])} of the variation: more negative  ←→  more positive`, pad+(w-pad)/2, h-12);
+  ctx.save(); ctx.translate(15,(h-pad)/2); ctx.rotate(-Math.PI/2); ctx.fillText(`axis 2, ${pc(M.ev[1])}: English  ←→  BCS`,0,0); ctx.restore();
+  const e=D.examples[cur], ex=X(e.pc[0]), ey=Y(e.pc[1]), right=ex>w*.7;
+  ctx.strokeStyle=C.ink; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(ex,ey,8,0,7); ctx.stroke();
+  ctx.fillStyle=C.ink; ctx.font=`600 13px ${FONT}`; ctx.textAlign=right?'right':'left'; ctx.fillText(labels[cur], ex+(right?-13:13), ey-11) }
+function mapLegend(mode){ document.getElementById('mapLegend').innerHTML = mode==='code'
+  ? `<span>human code 0<span class="grad" style="background:linear-gradient(90deg,${C.orange},#d8d6d0,${C.blue})"></span>5</span><span>ring: the sentence picked in Part 1</span>`
+  : `<span><span class="sw" style="background:${C.aqua}"></span>English (UK)</span><span><span class="sw" style="background:${C.violet}"></span>Bosnian, Croatian, Serbian</span><span>ring: the sentence picked in Part 1</span>` }
+seg('mapSeg',k=>{ const from=mapMix,to=k==='lang'?1:0; mapLegend(k); animate(420,t=>{mapMix=lerp(from,to,t);drawMap()},null,easeInOut) });
+mapLegend('code'); drawMap();
+document.getElementById('ans21').innerHTML=`The horizontal axis alone carries <b>${pc(M.ev[0])}</b> of the variation in <i>u</i>(<i>x</i>), and it is <b>tone</b>: negative sentences on the left, positive on the right, in <i>both</i> languages. The vertical axis is mostly <b>language</b>. A Croatian and an English sentence that say similar things sit at the same horizontal position, so an output layer can read tone off <i>u</i>(<i>x</i>) in any language the 24 layers know. Its basis functions are not words.`;
+
+/* Part 3: scatter */
+const S=D.sc, scCv=document.getElementById('sc'); let scModel='net', scLang=0, scT=1, prevX=null;
+const jit=S.y.map((_,i)=>((Math.sin(i*12.9898)*43758.5453)%1+1)%1*0.36);
+const xs = m => m==='net'?S.net:S.bow;
+function drawSc(){ const {ctx,w,h}=fitCanvas(scCv,.62), pad=40, lo=-0.8, hi=6;
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+  const X=v=>pad+(Math.max(lo,Math.min(hi,v))-lo)/(hi-lo)*(w-pad-12), Y=v=>h-pad-(v+0.4)/5.8*(h-pad-12);
+  ctx.strokeStyle=C.line; ctx.lineWidth=1; ctx.fillStyle=C.ink2; ctx.font=`12px ${FONT}`;
+  for(let k=0;k<=5;k++){ ctx.beginPath(); ctx.moveTo(X(k),Y(-0.4)); ctx.lineTo(X(k),12); ctx.stroke(); ctx.textAlign='center'; ctx.fillText(k,X(k),h-pad+16); ctx.textAlign='right'; ctx.fillText(k,pad-8,Y(k)+4) }
+  ctx.setLineDash([5,4]); ctx.strokeStyle='#9c9a94'; ctx.beginPath(); ctx.moveTo(X(-0.4),Y(-0.4)); ctx.lineTo(X(5.4),Y(5.4)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.textAlign='center'; ctx.fillText('prediction ŷ',pad+(w-pad)/2,h-6); ctx.save(); ctx.translate(12,(h-pad)/2); ctx.rotate(-Math.PI/2); ctx.fillText('human code (jittered)',0,0); ctx.restore();
+  const xv=xs(scModel); ctx.fillStyle=scModel==='net'?C.blue:C.orange; ctx.globalAlpha=.3;
+  for(let i=0;i<S.y.length;i++){ if(S.lang[i]!==scLang) continue; const x=prevX?lerp(prevX[i],xv[i],scT):xv[i];
+    ctx.beginPath(); ctx.arc(X(x),Y(S.y[i]-0.18+jit[i]),2.3,0,7); ctx.fill() } ctx.globalAlpha=1 }
+const scoreKey = () => (scModel==='net'?'net_':'bow_')+(scLang?'bcs':'uk');
+function updSc(){ const el=document.getElementById('scR2'), start=+el.dataset.v, target=D.scores[scoreKey()];
+  animate(560,t=>{ scT=t; drawSc(); const v=lerp(start,target,t); el.textContent=f2(v); el.dataset.v=v },()=>{prevX=null},easeInOut) }
+seg('scModel',k=>{ prevX=xs(scModel); scModel=k; updSc() });
+seg('scLang',k=>{ prevX=null; scLang=+k; updSc() });
+document.getElementById('scR2').textContent=f2(D.scores.net_uk); document.getElementById('scR2').dataset.v=D.scores.net_uk;
+document.getElementById('scCoder').textContent=f2(D.coders.UK_r2); drawSc();
+
+const vocab=new Set(D.vocab), ex7=D.examples[6], words=ex7.s.match(/\p{L}+/gu)||[]; let hits=0;
+document.getElementById('bowToks').innerHTML=words.map(wd=>{ const h=vocab.has(wd.toLowerCase()); if(h) hits++; return `<span class="tok${h?' hit':''}">${wd}</span>` }).join(' ');
+document.getElementById('bowTrans').textContent='“'+ex7.en+'”';
+document.getElementById('bowNote').innerHTML=`Highlighted: the ${hits} of ${words.length} words the English vocabulary knows, and that one is an accident of spelling. Serbian <i>i</i> means “and”, not English “I”. With nothing else to go on, the bag of words predicts <b>${f2(ex7.bow)}</b>, about what it predicts for almost every Bosnian, Croatian or Serbian sentence. The network predicts <b>${f2(ex7.yhat)}</b>; the coder said <b>${ex7.y}</b>.`;
+document.getElementById('ans31').innerHTML=`The network reaches <b><i>R</i>² = ${f2(D.scores.net_uk)}</b> (correlation ${f2(D.scores.cor_net_uk)}); the bag of words reaches <b>${f2(D.scores.bow_uk)}</b>. A second trained coder predicts the first with <i>R</i>² = ${f2(D.coders.UK_r2)} (correlation ${f2(D.coders.UK)}). On UK speech, then, the borrowed network agrees with a coder about as well as a second coder does. The published test <i>R</i>² is 0.67; landing close on our 1,500 sentences tells us we run the model we think we run.`;
+document.getElementById('ans32').innerHTML=`The bag of words falls to <b><i>R</i>² = ${f2(D.scores.bow_bcs)}</b>. Its basis functions are English words, almost none of which appear in Bosnian, Croatian or Serbian, so it predicts nearly the same number for every sentence: the orange column. The network holds at <b>${f2(D.scores.net_bcs)}</b>. As the map in Part 2 shows, its 24 layers place sentences by what they say, in any of the languages they learned.`;
+
+/* Part 4: learning curve */
+const ns=[50,100,200,500,1000], LC={bow:[],bor:[]};
+ns.forEach(n=>{ const r=D.curve.filter(c=>c.n===n); LC.bow.push(r.reduce((a,c)=>a+c.bow,0)/r.length); LC.bor.push(r.reduce((a,c)=>a+c.borrowed,0)/r.length) });
+const lcSvg=document.getElementById('lc'); let lcN=0;
+function drawLC(upto, frac){ const Wd=svgW(lcSvg), narrow=Wd<560, H=narrow?300:310,l=46,r=narrow?16:180,t=narrow?54:38,b=42; lcSvg.setAttribute('viewBox',`0 0 ${Wd} ${H}`); const lx=i=>l+Math.log(ns[i]/50)/Math.log(20)*(Wd-l-r), xn=n=>l+Math.log(n/50)/Math.log(20)*(Wd-l-r), y=v=>t+(0.75-v)/1.0*(H-t-b);
+  let s='';
+  [-0.2,0,0.2,0.4,0.6].forEach(v=>{ s+=`<line x1="${l}" x2="${Wd-r}" y1="${y(v)}" y2="${y(v)}" stroke="${C.line}"/><text x="${l-8}" y="${y(v)+4}" font-size="12" text-anchor="end" fill="${C.ink2}">${v.toFixed(1).replace('-','−')}</text>` });
+  ns.forEach((n,i)=>{ s+=`<text x="${lx(i)}" y="${H-b+19}" font-size="12" text-anchor="middle" fill="${C.ink2}">${n.toLocaleString('en-US')}</text>` });
+  s+=`<text x="${(l+Wd-r)/2}" y="${H-6}" font-size="12.5" text-anchor="middle" fill="${C.ink2}">sentences you code (log scale)</text><text x="14" y="${(t+H-b)/2}" font-size="12.5" text-anchor="middle" fill="${C.ink2}" transform="rotate(-90 14 ${(t+H-b)/2})">test R²</text>`;
+  [[D.scores.net_uk,'network A, fine-tuned','on the UK test file'],[D.coders.CZ_r2,'a second Czech coder','']].forEach(([v,lab,l2])=>{ s+=`<line x1="${l}" x2="${Wd-r}" y1="${y(v)}" y2="${y(v)}" stroke="#9c9a94" stroke-dasharray="5 4"/>`;
+    s+= narrow ? `<text x="${l+4}" y="${y(v)-6}" font-size="11.5" fill="${C.ink}">${lab}${l2?' (UK)':''} <tspan font-weight="600">${f2(v)}</tspan></text>`
+               : `<text x="${Wd-r+10}" y="${y(v)+4}" font-size="12.5" fill="${C.ink}">${lab} <tspan font-weight="600">${f2(v)}</tspan></text>${l2?`<text x="${Wd-r+10}" y="${y(v)+19}" font-size="11.5" fill="${C.muted}">${l2}</text>`:''}` });
+  D.curve.forEach(c=>{ const i=ns.indexOf(c.n); if(i<upto||(i===upto&&frac>=1)) s+=`<circle cx="${xn(c.n)}" cy="${y(c.bow)}" r="3" fill="${C.orange}" opacity=".45"/><circle cx="${xn(c.n)}" cy="${y(c.borrowed)}" r="3" fill="${C.blue}" opacity=".45"/>` });
+  const path=(arr,col)=>{ let p=''; for(let i=0;i<=upto;i++){ let xx=lx(i), yy=y(arr[i]); if(i===upto&&i>0&&frac<1){ xx=lerp(lx(i-1),lx(i),frac); yy=lerp(y(arr[i-1]),y(arr[i]),frac) } p+=(i?'L':'M')+xx.toFixed(1)+' '+yy.toFixed(1) }
+    return `<path d="${p}" fill="none" stroke="${col}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>` };
+  s+=path(LC.bow,C.orange)+path(LC.bor,C.blue);
+  const endA = (narrow && upto>=3) ? 'end' : 'start', ex = lx(upto)+(endA==='end'?-6:9);
+  if(frac>=1) s+=`<text x="${ex}" y="${y(LC.bor[upto])-10}" font-size="13" font-weight="600" text-anchor="${endA}" fill="${C.blue}">${f2(LC.bor[upto])}</text><text x="${ex}" y="${y(LC.bow[upto])+20}" font-size="13" font-weight="600" text-anchor="${endA}" fill="${C.orange}">${f2(LC.bow[upto])}</text>`;
+  const lx2 = narrow ? l : l+232, ly2 = narrow ? 33 : 13;
+  s+=`<line x1="${l}" x2="${l+24}" y1="13" y2="13" stroke="${C.blue}" stroke-width="3" stroke-linecap="round"/><text x="${l+32}" y="17" font-size="12.5" fill="${C.ink}">frozen network B + ridge</text><line x1="${lx2}" x2="${lx2+24}" y1="${ly2}" y2="${ly2}" stroke="${C.orange}" stroke-width="3" stroke-linecap="round"/><text x="${lx2+32}" y="${ly2+4}" font-size="12.5" fill="${C.ink}">bag of words + ridge</text>`;
+  lcSvg.innerHTML=s }
+const sl=document.getElementById('nSlider'), nLab=document.getElementById('nLab');
+sl.addEventListener('input',()=>{ const to=+sl.value; nLab.textContent=ns[to].toLocaleString('en-US');
+  if(to>lcN){ let i=lcN+1; lcN=to; (function nxt(){ if(i>to) return; const ii=i; animate(260,t=>drawLC(ii,t),()=>{i++;nxt()},lin) })() } else { lcN=to; drawLC(to,1) } });
+drawLC(0,1);
+document.getElementById('ans41').innerHTML=`More than you can afford. With all 1,000 sentences the bag of words reaches <b>${f2(LC.bow[4])}</b>; the frozen features reach <b>${f2(LC.bor[1])}</b> with 100. Czech inflects heavily, so each form of a word is its own column and turns up once or twice: ridge has nothing to estimate from. Network B's layers, trained to fill in missing words, learned to represent what a sentence <i>does</i> (thank, blame, object) whatever the word forms, and part of that is linear in <i>u</i>(<i>x</i>).`;
+document.getElementById('ans42').innerHTML=`No. With 1,000 codes the frozen features reach ${f2(LC.bor[4])}: below a second Czech coder (${f2(D.coders.CZ_r2)}), and well below network A, whose 560 million weights were all fine-tuned on 13,000 coded sentences (${f2(D.scores.net_uk)} UK, ${f2(D.scores.net_bcs)} BCS). Prefer, in order: <b>(1)</b> a network already fine-tuned for your task and checked on speech like yours; <b>(2)</b> frozen features plus a few hundred of your own codes; <b>(3)</b> a bag of words, and only with thousands of codes. A hidden layer on top of the frozen features, as in <code>nnet</code>, did not help with 200 codes: the 24 layers have done the bending already.`;
+
+/* Part 5: ruling and gaps */
+const years=['2015','2016','2017','2018','2019','2020','2021'], parties=['Conservative','Labour'], rulSvg=document.getElementById('rul'); let rulMode='coded';
+function share(p,yr){ const r=D.ruling.filter(d=>d.party===p&&d.year===yr), co=r.filter(d=>d.ruling==='Coalition').reduce((a,d)=>a+d.Freq,0), tot=r.reduce((a,d)=>a+d.Freq,0); return tot?co/tot:0 }
+const truth = p => p==='Conservative'?1:0;
+function drawRul(fromMode,toMode,t){ const el=rulSvg, Wd=svgW(el), narrow=Wd<560, l=narrow?44:118, cw=(Wd-l-6)/7, ch=narrow?34:42, H=narrow?150:160; el.setAttribute('viewBox',`0 0 ${Wd} ${H}`); let s='';
+  years.forEach((yr,j)=>{ s+=`<text x="${l+j*cw+cw/2}" y="15" font-size="12.5" text-anchor="middle" fill="${C.ink2}">${narrow?"'"+yr.slice(2):yr}</text>` });
+  parties.forEach((p,i)=>{ const y0=28+i*(ch+8); s+=`<text x="${l-10}" y="${y0+ch/2+5}" font-size="13.5" text-anchor="end" fill="${C.ink}">${narrow?p.slice(0,3)+'.':p}</text>`;
+    years.forEach((yr,j)=>{ const v=lerp(fromMode==='coded'?share(p,yr):truth(p), toMode==='coded'?share(p,yr):truth(p), t), c=[0,1,2].map(k=>lerp([236,235,230][k],BL[k],v));
+      s+=`<rect x="${l+j*cw+2}" y="${y0}" width="${cw-4}" height="${ch}" rx="7" fill="${rgb(c)}"/><text x="${l+j*cw+cw/2}" y="${y0+ch/2+4}" font-size="${narrow?11:12}" text-anchor="middle" fill="${v>.5?'#fff':C.ink2}">${v>.5?(narrow?'gov':'government'):(narrow?'opp':'opposition')}</text>` }) });
+  const y1=28+2*(ch+8)+18;
+  s+=narrow ? `<text x="6" y="${y1}" font-size="11.5" fill="${C.muted}">Darker: more sentences coded as government.</text><text x="6" y="${y1+15}" font-size="11.5" fill="${C.muted}">2015 spans the May 2015 election.</text>`
+            : `<text x="${l}" y="${y1}" font-size="12" fill="${C.muted}">Darker blue: more sentences recorded as government. 2015 mixes speeches from before and after the May election.</text>`;
+  el.innerHTML=s }
+seg('rulSeg',k=>{ const from=rulMode; rulMode=k; animate(420,t=>drawRul(from,k,t),null,easeInOut) });
+drawRul('coded','coded',1);
+
+const GP=D.gaps, SE=D.gap_se, gapSvg=document.getElementById('gap'), order=['UK','HR','SRB','BiH'], names={UK:'United Kingdom',HR:'Croatia',SRB:'Serbia',BiH:'Bosnia and Herz.'}; let gapRaw=0;
+function drawGap(raw){ const el=gapSvg, Wd=svgW(el), narrow=Wd<560, l=narrow?96:150, r=16, t=34, row=50, H=250; el.setAttribute('viewBox',`0 0 ${Wd} ${H}`);
+  const x=v=>l+(Math.max(-1.7,Math.min(0.75,v))+1.7)/2.45*(Wd-l-r), short={UK:'UK',HR:'Croatia',SRB:'Serbia',BiH:'Bosnia & H.'};
+  let s='';
+  [-1.5,-1,-0.5,0,0.5].forEach(v=>{ s+=`<line x1="${x(v)}" x2="${x(v)}" y1="${t-8}" y2="${t+row*4-12}" stroke="${v===0?'#9c9a94':C.line}"/><text x="${x(v)}" y="${t+row*4+6}" font-size="12" text-anchor="middle" fill="${C.ink2}">${v.toFixed(1).replace('-','−')}</text>` });
+  s+=`<text x="${x(narrow?-1.6:-0.85)}" y="${t-14}" font-size="12" text-anchor="${narrow?'start':'middle'}" fill="${C.ink2}">← opposition sounds more negative</text>`;
+  order.forEach((k,i)=>{ const g=GP[k], se=SE[k], yy=t+i*row+12, cv = k==='UK' ? lerp(g.coders,D.uk_raw,raw) : g.coders, dy=7, ukRaw = k==='UK' && raw>0.02;
+    s+=`<text x="${l-12}" y="${yy+5}" font-size="13.5" text-anchor="end" fill="${C.ink}">${narrow?short[k]:names[k]}</text><text x="${l-12}" y="${yy+20}" font-size="11" text-anchor="end" fill="${C.muted}">${se.n_gov} · ${se.n_opp}</text>`;
+    if(!ukRaw) s+=`<line x1="${x(cv-1.96*se.se_c)}" x2="${x(cv+1.96*se.se_c)}" y1="${yy-dy}" y2="${yy-dy}" stroke="${C.ink}" stroke-width="2"/>`;
+    s+=`<circle cx="${x(cv)}" cy="${yy-dy}" r="6.5" fill="${C.ink}"/>`;
+    if(!ukRaw) s+=`<line x1="${x(g.network-1.96*se.se_n)}" x2="${x(g.network+1.96*se.se_n)}" y1="${yy+dy}" y2="${yy+dy}" stroke="${C.blue}" stroke-width="2"/><circle cx="${x(g.network)}" cy="${yy+dy}" r="6.5" fill="${C.blue}"/>`;
+    if(k==='UK' && raw>0.5) s+=`<text x="${x(cv)+12}" y="${yy-dy+4}" font-size="12" font-weight="600" fill="${C.orange}">wrong groups</text>` });
+  el.innerHTML=s }
+seg('gapSeg',k=>{ const from=gapRaw,to=k==='raw'?1:0; animate(420,t=>{gapRaw=lerp(from,to,t);drawGap(gapRaw)},null,easeInOut) });
+drawGap(0);
+document.getElementById('ans52').innerHTML=`In <b>Serbia</b>. The coders' gap is ${f2(GP.SRB.coders)}, the network's ${f2(GP.SRB.network)}. The network's error differs between government and opposition speakers by ${f2(D.err_srb.d)} (standard error ${f2(D.err_srb.se)}), about two standard errors: the network may understate the Serbian gap by a quarter. An overall <i>R</i>² of ${f2(D.scores.net_bcs)} cannot show this; only coded sentences <i>from each group you compare</i> can. Before reporting the network's gap, code a few hundred sentences per group and check that the mean error, <i>ŷ</i> − <i>y</i>, is the same in both. Bosnia and Herzegovina, with ${GP.BiH.n} sentences, is too small to say anything.`;
+
+const ta=document.getElementById('toggleAll'); ta.addEventListener('click',()=>{ const open=ta.dataset.o!=='1'; document.querySelectorAll('details.ans').forEach(d=>d.open=open); ta.dataset.o=open?'1':'0'; ta.textContent=open?'Hide all answers':'Show all answers' });
+let rt; window.addEventListener('resize',()=>{ clearTimeout(rt); rt=setTimeout(()=>{ drawMap(); drawSc(); const e=D.examples[cur]; if(!playing) drawDial(e.yhat,e.y); drawRul(rulMode,rulMode,1); drawGap(gapRaw); drawLC(lcN,1) },120) });
+</script>
+</body>
+</html>
